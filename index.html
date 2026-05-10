@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>やんばるツアー管理</title>
 <link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@300;400;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.min.js"></script>
 <style>
 :root {
   --forest:#1a3a2a;--forest-mid:#2d5e44;--forest-pale:#d4edd8;
@@ -15,6 +16,24 @@
 }
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:'Zen Kaku Gothic New',sans-serif;background:#f5f4ef;color:var(--dark);min-height:100vh}
+
+/* LOADING */
+#loading-screen{position:fixed;inset:0;background:var(--forest);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:9999;gap:16px}
+#loading-screen.hidden{display:none}
+#loading-screen .logo-big{font-size:28px;font-weight:900;color:#fff;letter-spacing:.05em}
+#loading-screen .logo-big span{color:var(--star)}
+#loading-screen p{color:rgba(255,255,255,.6);font-size:13px}
+.spinner-lg{width:36px;height:36px;border:3px solid rgba(255,255,255,.2);border-top-color:var(--star);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ERROR */
+#error-screen{position:fixed;inset:0;background:var(--forest);display:none;flex-direction:column;align-items:center;justify-content:center;z-index:9999;gap:12px;padding:24px}
+#error-screen.show{display:flex}
+#error-screen h2{color:#fff;font-size:20px}
+#error-screen p{color:rgba(255,255,255,.7);font-size:13px;text-align:center;max-width:400px;line-height:1.7}
+#error-screen code{background:rgba(255,255,255,.1);padding:8px 14px;border-radius:6px;color:var(--star);font-family:'DM Mono',monospace;font-size:12px}
+
+/* HEADER */
 header{background:var(--forest);color:#fff;position:sticky;top:0;z-index:100;box-shadow:0 2px 16px rgba(0,0,0,.25)}
 .header-inner{display:flex;align-items:stretch;flex-wrap:wrap}
 .logo{padding:14px 22px;font-size:16px;font-weight:900;letter-spacing:.05em;border-right:1px solid rgba(255,255,255,.1);white-space:nowrap}
@@ -23,6 +42,12 @@ nav.tabs{display:flex;align-items:stretch;flex:1}
 .tab-btn{background:none;border:none;color:rgba(255,255,255,.5);font-family:inherit;font-size:13px;font-weight:700;padding:0 18px;cursor:pointer;transition:all .2s;border-bottom:3px solid transparent;white-space:nowrap}
 .tab-btn:hover{color:#fff;background:rgba(255,255,255,.06)}
 .tab-btn.active{color:#fff;border-bottom-color:var(--star)}
+.header-status{display:flex;align-items:center;padding:0 14px;gap:7px;font-size:11px;color:rgba(255,255,255,.6);margin-left:auto}
+.status-dot{width:7px;height:7px;border-radius:50%;background:#555}
+.status-dot.connected{background:#4caf50;box-shadow:0 0 6px #4caf50}
+.status-dot.syncing{background:var(--star);animation:pulse .8s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
 .container{max-width:1400px;margin:0 auto;padding:20px}
 .page{display:none}.page.active{display:block}
 
@@ -57,6 +82,7 @@ nav.tabs{display:flex;align-items:stretch;flex:1}
 .btn-danger{background:#f8e6e4;color:var(--danger)}.btn-danger:hover{background:var(--danger);color:#fff}
 .btn-ghost{background:transparent;border:1.5px solid #ddd;color:#555}.btn-ghost:hover{background:var(--light)}
 .btn-sm{padding:5px 11px;font-size:11px}
+.btn:disabled{opacity:.5;cursor:not-allowed;transform:none!important}
 
 /* FORM */
 .form-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
@@ -129,6 +155,21 @@ tr:hover td{background:#fafaf5}
 </head>
 <body>
 
+<!-- LOADING -->
+<div id="loading-screen">
+  <div class="logo-big">🌿 <span>やんばる</span>ツアー管理</div>
+  <div class="spinner-lg"></div>
+  <p>Supabaseに接続中...</p>
+</div>
+
+<!-- ERROR -->
+<div id="error-screen">
+  <h2>⚠️ 接続エラー</h2>
+  <p id="error-msg">Supabaseへの接続に失敗しました。<br>SQLテーブルが作成されているか確認してください。</p>
+  <code id="error-detail"></code>
+  <button class="btn btn-gold" onclick="location.reload()">🔄 再接続</button>
+</div>
+
 <!-- HEADER -->
 <header>
   <div class="header-inner">
@@ -139,12 +180,16 @@ tr:hover td{background:#fafaf5}
       <button class="tab-btn" onclick="showTab('reward',this)">💴 ガイド報酬</button>
       <button class="tab-btn" onclick="showTab('rules',this)">⚙️ ルール設定</button>
     </nav>
+    <div class="header-status">
+      <div class="status-dot" id="status-dot"></div>
+      <span id="status-text">接続中...</span>
+    </div>
   </div>
 </header>
 
 <div class="container">
 
-<!-- ══ 森のツアー ══ -->
+<!-- 森のツアー -->
 <div id="page-forest" class="page active">
   <div class="page-header">
     <div class="page-title">🌲 森のツアー <small>夜の森の探検・モニタリング</small></div>
@@ -177,7 +222,7 @@ tr:hover td{background:#fafaf5}
   </div>
 </div>
 
-<!-- ══ 星空ツアー ══ -->
+<!-- 星空ツアー -->
 <div id="page-star" class="page">
   <div class="page-header">
     <div class="page-title">✨ 星空ツアー <small>てぃんがーら・星語り・フォトツアー</small></div>
@@ -210,14 +255,14 @@ tr:hover td{background:#fafaf5}
   </div>
 </div>
 
-<!-- ══ ガイド報酬 ══ -->
+<!-- ガイド報酬 -->
 <div id="page-reward" class="page">
   <div class="page-header">
     <div class="page-title">💴 ガイド報酬集計</div>
     <div class="btn-group">
       <label style="font-size:12px;font-weight:700;align-self:center">対象月：</label>
       <select id="reward-month" onchange="renderReward()" style="font-size:12px;padding:7px 11px;border:1.5px solid #ddd;border-radius:var(--rs);font-family:inherit"><option value="">全期間</option></select>
-      <button class="btn btn-gold" onclick="exportRewardCSV()">⬇ 報酬CSV出力</button>
+      <button class="btn btn-gold" onclick="exportRewardCSV()">⬇ 報酬CSV</button>
     </div>
   </div>
   <div class="inner-tabs">
@@ -225,7 +270,6 @@ tr:hover td{background:#fafaf5}
     <button class="inner-tab" onclick="showSub('reward','daily',this)">日次明細</button>
     <button class="inner-tab" onclick="showSub('reward','combined',this)">ツアー横断</button>
   </div>
-
   <div id="sub-reward-monthly" class="sub-page active">
     <div id="guide-cards" class="guide-cards"></div>
     <div class="card">
@@ -238,7 +282,6 @@ tr:hover td{background:#fafaf5}
       </div>
     </div>
   </div>
-
   <div id="sub-reward-daily" class="sub-page">
     <div class="card">
       <div class="card-header"><h2>📅 日次明細</h2></div>
@@ -250,7 +293,6 @@ tr:hover td{background:#fafaf5}
       </div>
     </div>
   </div>
-
   <div id="sub-reward-combined" class="sub-page">
     <div class="card">
       <div class="card-header"><h2>🔄 ガイド×ツアー横断</h2></div>
@@ -259,14 +301,11 @@ tr:hover td{background:#fafaf5}
   </div>
 </div>
 
-<!-- ══ ルール設定 ══ -->
+<!-- ルール設定 -->
 <div id="page-rules" class="page">
   <div class="page-header"><div class="page-title">⚙️ 報酬計算ルール設定</div></div>
   <div class="card">
-    <div class="card-header">
-      <h2>🌲 森のツアー 分配ルール</h2>
-      <button class="btn btn-primary btn-sm" onclick="addRule('forest')">＋ 追加</button>
-    </div>
+    <div class="card-header"><h2>🌲 森のツアー 分配ルール</h2><button class="btn btn-primary btn-sm" onclick="addRule('forest')">＋ 追加</button></div>
     <div class="card-body">
       <p style="font-size:12px;color:#888;margin-bottom:12px">サブガイドがいる場合に「支払計」をメイン/サブで分配します。</p>
       <div id="rules-forest">
@@ -280,10 +319,7 @@ tr:hover td{background:#fafaf5}
     </div>
   </div>
   <div class="card">
-    <div class="card-header">
-      <h2>✨ 星空ツアー 分配ルール</h2>
-      <button class="btn btn-sky btn-sm" onclick="addRule('star')">＋ 追加</button>
-    </div>
+    <div class="card-header"><h2>✨ 星空ツアー 分配ルール</h2><button class="btn btn-sky btn-sm" onclick="addRule('star')">＋ 追加</button></div>
     <div class="card-body">
       <div id="rules-star">
         <div class="rule-row">
@@ -311,14 +347,13 @@ tr:hover td{background:#fafaf5}
 
 </div><!-- /container -->
 
-<!-- ══ MODAL 森 ══ -->
+<!-- MODAL 森 -->
 <div class="modal-overlay" id="modal-forest">
   <div class="modal">
     <h3>🌲 森のツアー記録を追加</h3>
     <div class="form-grid">
       <div class="form-group"><label>ツアー催行日 *</label><input type="date" id="f-date"></div>
-      <div class="form-group"><label>ツアーの種類 *</label>
-        <select id="f-type"><option>夜の森の探検ツアー</option><option>モニタリング</option></select></div>
+      <div class="form-group"><label>ツアーの種類 *</label><select id="f-type"><option>夜の森の探検ツアー</option><option>モニタリング</option></select></div>
       <div class="form-group"><label>お客様名（苗字）*</label><input type="text" id="f-name" placeholder="ひらがな or ローマ字"></div>
       <div class="form-group"><label>大人（12歳以上）</label><input type="number" id="f-adult" value="1" min="0"></div>
       <div class="form-group"><label>子ども（6〜12歳）</label><input type="number" id="f-child" value="0" min="0"></div>
@@ -326,8 +361,7 @@ tr:hover td{background:#fafaf5}
       <div class="form-group"><label>乳幼児（0〜2歳）</label><input type="number" id="f-baby" value="0" min="0"></div>
       <div class="form-group"><label>男性人数</label><input type="number" id="f-male" value="0" min="0"></div>
       <div class="form-group"><label>女性人数</label><input type="number" id="f-female" value="0" min="0"></div>
-      <div class="form-group"><label>グループ</label>
-        <select id="f-group"><option>ファミリー</option><option>夫婦・パートナー</option><option>友人</option><option>団体</option><option>ソロ</option><option>不明</option></select></div>
+      <div class="form-group"><label>グループ</label><select id="f-group"><option>ファミリー</option><option>夫婦・パートナー</option><option>友人</option><option>団体</option><option>ソロ</option><option>不明</option></select></div>
       <div class="form-group"><label>出身（県外）</label>
         <select id="f-pref"><option value="">—</option><option>北海道</option><option>青森県</option><option>岩手県</option><option>宮城県</option><option>秋田県</option><option>山形県</option><option>福島県</option><option>茨城県</option><option>栃木県</option><option>群馬県</option><option>埼玉県</option><option>千葉県</option><option>東京都</option><option>神奈川県</option><option>新潟県</option><option>富山県</option><option>石川県</option><option>福井県</option><option>山梨県</option><option>長野県</option><option>岐阜県</option><option>静岡県</option><option>愛知県</option><option>三重県</option><option>滋賀県</option><option>京都府</option><option>大阪府</option><option>兵庫県</option><option>奈良県</option><option>和歌山県</option><option>鳥取県</option><option>島根県</option><option>岡山県</option><option>広島県</option><option>山口県</option><option>徳島県</option><option>香川県</option><option>愛媛県</option><option>高知県</option><option>福岡県</option><option>佐賀県</option><option>長崎県</option><option>熊本県</option><option>大分県</option><option>宮崎県</option><option>鹿児島県</option><option>不明</option></select></div>
       <div class="form-group"><label>出身（県内）</label>
@@ -335,12 +369,9 @@ tr:hover td{background:#fafaf5}
       <div class="form-group"><label>滞在先エリア</label>
         <select id="f-stay"><option value="">—</option><option>国頭村森林公園</option><option>国頭村</option><option>名護市</option><option>恩納村</option><option>本部町</option><option>今帰仁村</option><option>那覇市</option><option>北谷町</option><option>不明</option></select></div>
       <div class="form-group"><label>宿泊先ホテル名</label><input type="text" id="f-hotel"></div>
-      <div class="form-group"><label>申込方法 *</label>
-        <select id="f-booking"><option>なっぷオプション</option><option>ベルトラ</option><option>オクマ</option><option>直接申し込み</option><option>取材</option><option>イベント</option></select></div>
-      <div class="form-group"><label>メインガイド *</label>
-        <select id="f-main"><option>MOJI</option><option>あずみ</option><option>雄二</option><option>KOKI</option><option>MOMO</option><option>みほこさん</option></select></div>
-      <div class="form-group"><label>サブガイド</label>
-        <select id="f-sub"><option value="">—</option><option>MOJI</option><option>あずみ</option><option>雄二</option><option>KOKI</option><option>MOMO</option><option>みほこさん</option></select></div>
+      <div class="form-group"><label>申込方法 *</label><select id="f-booking"><option>なっぷオプション</option><option>ベルトラ</option><option>オクマ</option><option>直接申し込み</option><option>取材</option><option>イベント</option></select></div>
+      <div class="form-group"><label>メインガイド *</label><select id="f-main"><option>MOJI</option><option>あずみ</option><option>雄二</option><option>KOKI</option><option>MOMO</option><option>みほこさん</option></select></div>
+      <div class="form-group"><label>サブガイド</label><select id="f-sub"><option value="">—</option><option>MOJI</option><option>あずみ</option><option>雄二</option><option>KOKI</option><option>MOMO</option><option>みほこさん</option></select></div>
       <div class="form-group"><label>売上実績（円）</label><input type="number" id="f-sales" value="0" min="0"></div>
       <div class="form-group"><label>ベース金額（円）</label><input type="number" id="f-base" value="8000" min="0"></div>
       <div class="form-group"><label>追加金額（円）</label><input type="number" id="f-extra" value="0" min="0"></div>
@@ -348,19 +379,18 @@ tr:hover td{background:#fafaf5}
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('forest')">キャンセル</button>
-      <button class="btn btn-primary" onclick="saveRecord('forest')">💾 保存</button>
+      <button class="btn btn-primary" id="save-btn-forest" onclick="saveRecord('forest')">💾 保存</button>
     </div>
   </div>
 </div>
 
-<!-- ══ MODAL 星空 ══ -->
+<!-- MODAL 星空 -->
 <div class="modal-overlay" id="modal-star">
   <div class="modal">
     <h3>✨ 星空ツアー記録を追加</h3>
     <div class="form-grid">
       <div class="form-group"><label>ツアー催行日 *</label><input type="date" id="s-date"></div>
-      <div class="form-group"><label>ツアーの種類 *</label>
-        <select id="s-type"><option>てぃんがーら</option><option>星語り（美ら星）</option><option>フォトツアー</option></select></div>
+      <div class="form-group"><label>ツアーの種類 *</label><select id="s-type"><option>てぃんがーら</option><option>星語り（美ら星）</option><option>フォトツアー</option></select></div>
       <div class="form-group"><label>お客様名（苗字）*</label><input type="text" id="s-name" placeholder="ひらがな or ローマ字"></div>
       <div class="form-group"><label>大人（12歳以上）</label><input type="number" id="s-adult" value="1" min="0"></div>
       <div class="form-group"><label>子ども（6〜12歳）</label><input type="number" id="s-child" value="0" min="0"></div>
@@ -368,8 +398,7 @@ tr:hover td{background:#fafaf5}
       <div class="form-group"><label>乳幼児（0〜2歳）</label><input type="number" id="s-baby" value="0" min="0"></div>
       <div class="form-group"><label>男性人数</label><input type="number" id="s-male" value="0" min="0"></div>
       <div class="form-group"><label>女性人数</label><input type="number" id="s-female" value="0" min="0"></div>
-      <div class="form-group"><label>グループ</label>
-        <select id="s-group"><option>ファミリー</option><option>夫婦・パートナー</option><option>友人</option><option>団体</option><option>ソロ</option><option>不明</option></select></div>
+      <div class="form-group"><label>グループ</label><select id="s-group"><option>ファミリー</option><option>夫婦・パートナー</option><option>友人</option><option>団体</option><option>ソロ</option><option>不明</option></select></div>
       <div class="form-group"><label>出身（県外）</label>
         <select id="s-pref"><option value="">—</option><option>北海道</option><option>宮城県</option><option>茨城県</option><option>栃木県</option><option>埼玉県</option><option>千葉県</option><option>東京都</option><option>神奈川県</option><option>長野県</option><option>愛知県</option><option>京都府</option><option>大阪府</option><option>兵庫県</option><option>奈良県</option><option>岡山県</option><option>広島県</option><option>香川県</option><option>愛媛県</option><option>福岡県</option><option>鹿児島県</option><option>不明</option></select></div>
       <div class="form-group"><label>出身（県内）</label>
@@ -377,12 +406,9 @@ tr:hover td{background:#fafaf5}
       <div class="form-group"><label>滞在先エリア</label>
         <select id="s-stay"><option value="">—</option><option>国頭村森林公園</option><option>国頭村</option><option>名護市</option><option>恩納村</option><option>本部町</option><option>今帰仁村</option><option>那覇市</option><option>北谷町</option><option>不明</option></select></div>
       <div class="form-group"><label>宿泊先ホテル名</label><input type="text" id="s-hotel"></div>
-      <div class="form-group"><label>申込方法 *</label>
-        <select id="s-booking"><option>なっぷオプション</option><option>ベルトラ</option><option>オクマ</option><option>直接申し込み</option><option>取材</option><option>イベント</option></select></div>
-      <div class="form-group"><label>メインガイド *</label>
-        <select id="s-main"><option>MOJI</option><option>KAZUNA</option><option>EMA</option><option>MOMO</option><option>KOKI</option></select></div>
-      <div class="form-group"><label>サブガイド</label>
-        <select id="s-sub"><option value="">—</option><option>MOJI</option><option>KAZUNA</option><option>EMA</option><option>MOMO</option><option>KOKI</option></select></div>
+      <div class="form-group"><label>申込方法 *</label><select id="s-booking"><option>なっぷオプション</option><option>ベルトラ</option><option>オクマ</option><option>直接申し込み</option><option>取材</option><option>イベント</option></select></div>
+      <div class="form-group"><label>メインガイド *</label><select id="s-main"><option>MOJI</option><option>KAZUNA</option><option>EMA</option><option>MOMO</option><option>KOKI</option></select></div>
+      <div class="form-group"><label>サブガイド</label><select id="s-sub"><option value="">—</option><option>MOJI</option><option>KAZUNA</option><option>EMA</option><option>MOMO</option><option>KOKI</option></select></div>
       <div class="form-group"><label>売上実績（円）</label><input type="number" id="s-sales" value="0" min="0"></div>
       <div class="form-group"><label>ベース金額（円）</label><input type="number" id="s-base" value="9000" min="0"></div>
       <div class="form-group"><label>追加金額（円）</label><input type="number" id="s-extra" value="0" min="0"></div>
@@ -390,7 +416,7 @@ tr:hover td{background:#fafaf5}
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('star')">キャンセル</button>
-      <button class="btn btn-sky" onclick="saveRecord('star')">💾 保存</button>
+      <button class="btn btn-sky" id="save-btn-star" onclick="saveRecord('star')">💾 保存</button>
     </div>
   </div>
 </div>
@@ -399,175 +425,168 @@ tr:hover td{background:#fafaf5}
 
 <script>
 // ═══════════════════════════════════════════
-// DATA — localStorage
+// SUPABASE 接続設定（キー埋め込み済み）
 // ═══════════════════════════════════════════
-const KEY = 'yanbaruTours_v3';
-function load() {
-  try { return JSON.parse(localStorage.getItem(KEY)) || {forest:[],star:[]}; }
-  catch { return {forest:[],star:[]}; }
+const SB_URL = 'https://gjbttpadwnemngsgcmwq.supabase.co';
+const SB_KEY = 'sb_publishable_RFRMqV9XStdB2bNUucQKzw_OtKi-OqN';
+
+let sb = null;
+let DB = { forest: [], star: [] };
+
+async function init() {
+  try {
+    sb = supabase.createClient(SB_URL, SB_KEY);
+    const { error } = await sb.from('tours').select('id').limit(1);
+    if (error) throw error;
+    document.getElementById('loading-screen').classList.add('hidden');
+    setStatus('connected');
+    await loadAll();
+    subscribeRT();
+  } catch(e) {
+    document.getElementById('loading-screen').classList.add('hidden');
+    document.getElementById('error-screen').classList.add('show');
+    document.getElementById('error-detail').textContent = e.message;
+  }
 }
-function save() { localStorage.setItem(KEY, JSON.stringify(DB)); }
 
-let DB = load();
+function setStatus(s) {
+  const dot = document.getElementById('status-dot');
+  const txt = document.getElementById('status-text');
+  if (s==='connected') { dot.className='status-dot connected'; txt.textContent='リアルタイム同期中'; }
+  else if (s==='syncing') { dot.className='status-dot syncing'; txt.textContent='同期中...'; }
+}
 
-// サンプルデータ
-if (!DB.forest.length && !DB.star.length) {
-  DB.forest = [
-    {id:1,date:'2026-04-02',type:'夜の森の探検ツアー',name:'もり',adult:3,child:2,infant:0,baby:0,male:3,female:2,group:'ファミリー',pref:'不明',city:'',stay:'',hotel:'',booking:'ベルトラ',mainGuide:'雄二',subGuide:'',sales:23100,base:8000,extra:3000,note:''},
-    {id:2,date:'2026-04-02',type:'夜の森の探検ツアー',name:'もといけ',adult:1,child:1,infant:0,baby:0,male:2,female:0,group:'ファミリー',pref:'鳥取県',city:'',stay:'国頭村森林公園',hotel:'バンガロー',booking:'なっぷオプション',mainGuide:'あずみ',subGuide:'',sales:8800,base:8000,extra:0,note:''},
-    {id:3,date:'2026-04-03',type:'夜の森の探検ツアー',name:'せお',adult:2,child:2,infant:0,baby:0,male:1,female:3,group:'ファミリー',pref:'兵庫県',city:'',stay:'国頭村',hotel:'ちちぬーじ',booking:'ベルトラ',mainGuide:'雄二',subGuide:'',sales:17600,base:8000,extra:2000,note:''},
-    {id:4,date:'2026-04-11',type:'夜の森の探検ツアー',name:'さかい',adult:2,child:0,infant:0,baby:0,male:1,female:1,group:'夫婦・パートナー',pref:'京都府',city:'',stay:'恩納村',hotel:'',booking:'ベルトラ',mainGuide:'あずみ',subGuide:'',sales:11000,base:8000,extra:0,note:''},
-  ];
-  DB.star = [
-    {id:1,date:'2026-04-02',type:'てぃんがーら',name:'あおやぎ',adult:2,child:2,infant:0,baby:0,male:2,female:2,group:'ファミリー',pref:'東京都',city:'',stay:'恩納村',hotel:'ANAインターコンチ',booking:'ベルトラ',mainGuide:'KAZUNA',subGuide:'EMA',sales:22000,base:9000,extra:2000,note:''},
-    {id:2,date:'2026-04-03',type:'てぃんがーら',name:'あおやま',adult:4,child:1,infant:0,baby:0,male:2,female:3,group:'ファミリー',pref:'千葉県',city:'',stay:'名護市',hotel:'',booking:'ベルトラ',mainGuide:'MOJI',subGuide:'',sales:30800,base:9000,extra:3000,note:'ハイブリッド対応'},
-    {id:3,date:'2026-04-05',type:'星語り（美ら星）',name:'すぎうら',adult:2,child:0,infant:0,baby:0,male:1,female:1,group:'夫婦・パートナー',pref:'東京都',city:'',stay:'国頭村',hotel:'オクマ',booking:'オクマ',mainGuide:'EMA',subGuide:'',sales:7700,base:5000,extra:0,note:''},
-    {id:4,date:'2026-04-10',type:'てぃんがーら',name:'さいとう',adult:5,child:0,infant:0,baby:0,male:2,female:3,group:'友人',pref:'大阪府',city:'',stay:'本部町',hotel:'',booking:'ベルトラ',mainGuide:'MOJI',subGuide:'EMA',sales:33000,base:9000,extra:4000,note:''},
-  ];
-  save();
+// DB変換
+function dbToLocal(r) {
+  return { id:r.id, date:r.date, type:r.type, name:r.name,
+    adult:r.adult||0, child:r.child||0, infant:r.infant||0, baby:r.baby||0,
+    male:r.male||0, female:r.female||0, group:r.grp||'',
+    pref:r.pref||'', city:r.city||'', stay:r.stay||'', hotel:r.hotel||'',
+    booking:r.booking||'', mainGuide:r.main_guide||'', subGuide:r.sub_guide||'',
+    sales:r.sales||0, base:r.base_amt||0, extra:r.extra_amt||0, note:r.note||'' };
+}
+function localToDb(rec, tourType) {
+  return { tour_type:tourType, date:rec.date, type:rec.type, name:rec.name,
+    adult:rec.adult, child:rec.child, infant:rec.infant, baby:rec.baby,
+    male:rec.male, female:rec.female, grp:rec.group,
+    pref:rec.pref, city:rec.city, stay:rec.stay, hotel:rec.hotel,
+    booking:rec.booking, main_guide:rec.mainGuide, sub_guide:rec.subGuide,
+    sales:rec.sales, base_amt:rec.base, extra_amt:rec.extra, note:rec.note };
+}
+
+async function loadAll() {
+  setStatus('syncing');
+  const { data, error } = await sb.from('tours').select('*').order('date');
+  if (error) { showToast('読込エラー: '+error.message, 'error'); return; }
+  DB.forest = (data||[]).filter(r=>r.tour_type==='forest').map(dbToLocal);
+  DB.star   = (data||[]).filter(r=>r.tour_type==='star').map(dbToLocal);
+  setStatus('connected');
+  refreshAll();
+}
+
+function subscribeRT() {
+  sb.channel('tours-rt')
+    .on('postgres_changes', {event:'*', schema:'public', table:'tours'}, () => loadAll())
+    .subscribe();
 }
 
 // ═══════════════════════════════════════════
 // UTILS
 // ═══════════════════════════════════════════
-const fmt    = n => Number(n||0).toLocaleString('ja-JP');
-const pax    = r => (r.adult||0)+(r.child||0)+(r.infant||0)+(r.baby||0);
-const pay    = r => (r.base||0)+(r.extra||0);
-const SPLIT  = 0.70;
-const G_COL  = {雄二:'c-forest',あずみ:'c-sky',MOJI:'c-gold',KAZUNA:'c-accent',EMA:'c-purple',KOKI:'c-forest',MOMO:'c-sky',みほこさん:'c-gold'};
-
-function nextId(type) {
-  return DB[type].length ? Math.max(...DB[type].map(r=>r.id))+1 : 1;
-}
+const fmt  = n => Number(n||0).toLocaleString('ja-JP');
+const pax  = r => (r.adult||0)+(r.child||0)+(r.infant||0)+(r.baby||0);
+const pay  = r => (r.base||0)+(r.extra||0);
+const SPLIT = 0.70;
+const G_COL = {雄二:'c-forest',あずみ:'c-sky',MOJI:'c-gold',KAZUNA:'c-accent',EMA:'c-purple',KOKI:'c-forest',MOMO:'c-sky',みほこさん:'c-gold'};
 
 // ═══════════════════════════════════════════
-// CSV EXPORT
+// CSV出力
 // ═══════════════════════════════════════════
 function csvEscape(v) {
-  const s = String(v ?? '');
-  return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g,'""')}"` : s;
+  const s = String(v??'');
+  return (s.includes(',')||s.includes('"')||s.includes('\n')) ? `"${s.replace(/"/g,'""')}"` : s;
+}
+function downloadCSV(csv, filename) {
+  const blob = new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8'});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href=url; a.download=filename; a.click();
+  URL.revokeObjectURL(url);
 }
 
 function exportCSV(type) {
   const month = document.getElementById('filter-'+type+'-month').value;
   const guide = document.getElementById('filter-'+type+'-guide').value;
   const ttype = document.getElementById('filter-'+type+'-type').value;
-
-  let recs = DB[type].filter(r => {
-    if (month && r.date?.slice(0,7) !== month) return false;
-    if (guide && r.mainGuide !== guide && r.subGuide !== guide) return false;
-    if (ttype && r.type !== ttype) return false;
+  let recs = DB[type].filter(r=>{
+    if(month && r.date?.slice(0,7)!==month) return false;
+    if(guide && r.mainGuide!==guide && r.subGuide!==guide) return false;
+    if(ttype && r.type!==ttype) return false;
     return true;
-  }).sort((a,b) => a.date > b.date ? 1 : -1);
+  }).sort((a,b)=>a.date>b.date?1:-1);
 
-  const forestHeaders = ['催行日','種別','お客様名','大人','子ども','幼児','乳幼児','合計人数','男性','女性','グループ','出身（県外）','出身（県内）','滞在先エリア','ホテル名','申込方法','メインガイド','サブガイド','売上実績','ベース金額','追加金額','支払合計','粗利率（%）','備考'];
-  const starHeaders   = ['催行日','種別','お客様名','大人','子ども','幼児','乳幼児','合計人数','男性','女性','グループ','出身（県外）','出身（県内）','滞在先エリア','ホテル名','申込方法','メインガイド','サブガイド','売上実績','ベース金額','追加金額','支払合計','備考'];
-  const headers = type === 'forest' ? forestHeaders : starHeaders;
+  const hF=['催行日','種別','お客様名','大人','子ども','幼児','乳幼児','合計人数','男性','女性','グループ','出身（県外）','出身（県内）','滞在先','ホテル名','申込方法','メインガイド','サブガイド','売上実績','ベース金額','追加金額','支払合計','粗利率（%）','備考'];
+  const hS=['催行日','種別','お客様名','大人','子ども','幼児','乳幼児','合計人数','男性','女性','グループ','出身（県外）','出身（県内）','滞在先','ホテル名','申込方法','メインガイド','サブガイド','売上実績','ベース金額','追加金額','支払合計','備考'];
+  const headers = type==='forest' ? hF : hS;
 
-  const rows = recs.map(r => {
-    const totalPay = pay(r);
-    const margin   = r.sales > 0 ? ((r.sales - totalPay) / r.sales * 100).toFixed(1) : '';
-    const base = [r.date,r.type,r.name,r.adult,r.child,r.infant,r.baby,pax(r),r.male,r.female,r.group,r.pref||'',r.city||'',r.stay||'',r.hotel||'',r.booking,r.mainGuide,r.subGuide||'',r.sales,r.base,r.extra,totalPay];
-    return type === 'forest' ? [...base, margin, r.note||''] : [...base, r.note||''];
+  const rows = recs.map(r=>{
+    const p=pay(r), margin=r.sales>0?((r.sales-p)/r.sales*100).toFixed(1):'';
+    const base=[r.date,r.type,r.name,r.adult,r.child,r.infant,r.baby,pax(r),r.male,r.female,r.group,r.pref,r.city,r.stay,r.hotel,r.booking,r.mainGuide,r.subGuide,r.sales,r.base,r.extra,p];
+    return type==='forest' ? [...base,margin,r.note] : [...base,r.note];
   });
 
-  const BOM = '\uFEFF';
-  const csv = BOM + [headers, ...rows].map(row => row.map(csvEscape).join(',')).join('\r\n');
-  const label = type === 'forest' ? '森のツアー' : '星空ツアー';
-  const monthLabel = month ? month.replace('-','年')+'月' : '全期間';
-  downloadCSV(csv, `${label}_${monthLabel}.csv`);
+  const label = type==='forest'?'森のツアー':'星空ツアー';
+  const mLabel = month?month.replace('-','年')+'月':'全期間';
+  downloadCSV([headers,...rows].map(row=>row.map(csvEscape).join(',')).join('\r\n'), `${label}_${mLabel}.csv`);
   showToast('CSVを出力しました 📄','success');
 }
 
 function exportRewardCSV() {
   const month = document.getElementById('reward-month').value;
-  const fR = month ? DB.forest.filter(r=>r.date?.slice(0,7)===month) : DB.forest;
-  const sR = month ? DB.star.filter(r=>r.date?.slice(0,7)===month)   : DB.star;
+  const fR = month?DB.forest.filter(r=>r.date?.slice(0,7)===month):DB.forest;
+  const sR = month?DB.star.filter(r=>r.date?.slice(0,7)===month):DB.star;
+  const allGuides=[...new Set([...DB.forest.map(r=>r.mainGuide),...DB.forest.map(r=>r.subGuide),...DB.star.map(r=>r.mainGuide),...DB.star.map(r=>r.subGuide)].filter(Boolean))].sort();
+  const stats={};
+  allGuides.forEach(g=>{stats[g]={fM:0,fS:0,fC:0,sM:0,sS:0,sC:0};});
+  fR.forEach(r=>{const p=pay(r);if(r.mainGuide&&stats[r.mainGuide]){stats[r.mainGuide].fM+=r.subGuide?Math.round(p*SPLIT):p;stats[r.mainGuide].fC++;}if(r.subGuide&&stats[r.subGuide]){stats[r.subGuide].fS+=Math.round(p*(1-SPLIT));stats[r.subGuide].fC++;}});
+  sR.forEach(r=>{const p=pay(r);if(r.mainGuide&&stats[r.mainGuide]){stats[r.mainGuide].sM+=r.subGuide?Math.round(p*SPLIT):p;stats[r.mainGuide].sC++;}if(r.subGuide&&stats[r.subGuide]){stats[r.subGuide].sS+=Math.round(p*(1-SPLIT));stats[r.subGuide].sC++;}});
 
-  const allGuides = [...new Set([
-    ...DB.forest.map(r=>r.mainGuide),...DB.forest.map(r=>r.subGuide),
-    ...DB.star.map(r=>r.mainGuide),...DB.star.map(r=>r.subGuide)
-  ].filter(Boolean))].sort();
+  const h1=['ガイド','森：件数','森：報酬','星：件数','星：報酬','合計件数','合計報酬'];
+  const r1=allGuides.map(g=>{const s=stats[g],fA=s.fM+s.fS,sA=s.sM+s.sS;return[g,s.fC,fA,s.sC,sA,s.fC+s.sC,fA+sA];});
+  const tF=allGuides.reduce((s,g)=>s+stats[g].fC,0),tFA=allGuides.reduce((s,g)=>s+stats[g].fM+stats[g].fS,0);
+  const tS=allGuides.reduce((s,g)=>s+stats[g].sC,0),tSA=allGuides.reduce((s,g)=>s+stats[g].sM+stats[g].sS,0);
+  r1.push(['合計',tF,tFA,tS,tSA,tF+tS,tFA+tSA]);
 
-  const stats = {};
-  allGuides.forEach(g => { stats[g]={fM:0,fS:0,fC:0,sM:0,sS:0,sC:0}; });
-  fR.forEach(r => {
-    const p=pay(r);
-    if(r.mainGuide&&stats[r.mainGuide]){stats[r.mainGuide].fM+=r.subGuide?Math.round(p*SPLIT):p;stats[r.mainGuide].fC++;}
-    if(r.subGuide &&stats[r.subGuide]) {stats[r.subGuide].fS +=Math.round(p*(1-SPLIT));stats[r.subGuide].fC++;}
-  });
-  sR.forEach(r => {
-    const p=pay(r);
-    if(r.mainGuide&&stats[r.mainGuide]){stats[r.mainGuide].sM+=r.subGuide?Math.round(p*SPLIT):p;stats[r.mainGuide].sC++;}
-    if(r.subGuide &&stats[r.subGuide]) {stats[r.subGuide].sS +=Math.round(p*(1-SPLIT));stats[r.subGuide].sC++;}
-  });
+  const all=[...DB.forest.map(r=>({...r,tT:'森のツアー'})),...DB.star.map(r=>({...r,tT:'星空ツアー'}))].filter(r=>!month||r.date?.slice(0,7)===month).sort((a,b)=>a.date>b.date?1:-1);
+  const h2=['日付','ツアー種別','お客様名','合計人数','メインガイド','サブガイド','支払合計','メイン分','サブ分'];
+  const r2=all.map(r=>{const p=pay(r),mA=r.subGuide?Math.round(p*SPLIT):p,sA=r.subGuide?Math.round(p*(1-SPLIT)):0;return[r.date,r.tT,r.name,pax(r),r.mainGuide,r.subGuide||'',p,mA,r.subGuide?sA:''];});
 
-  const headers = ['ガイド','森ツアー件数','森ツアー報酬','星空ツアー件数','星空ツアー報酬','合計件数','合計報酬'];
-  const rows = allGuides.map(g => {
-    const s=stats[g], fA=s.fM+s.fS, sA=s.sM+s.sS;
-    return [g, s.fC, fA, s.sC, sA, s.fC+s.sC, fA+sA];
-  });
-  const totF = allGuides.reduce((s,g)=>s+stats[g].fC,0);
-  const totFA = allGuides.reduce((s,g)=>s+stats[g].fM+stats[g].fS,0);
-  const totS = allGuides.reduce((s,g)=>s+stats[g].sC,0);
-  const totSA = allGuides.reduce((s,g)=>s+stats[g].sM+stats[g].sS,0);
-  rows.push(['合計', totF, totFA, totS, totSA, totF+totS, totFA+totSA]);
-
-  // 日次明細シートも1ファイルに（セクション分け）
-  const allRecs = [
-    ...DB.forest.map(r=>({...r,tT:'森のツアー'})),
-    ...DB.star.map(r=>({...r,tT:'星空ツアー'}))
-  ].filter(r=>!month||r.date?.slice(0,7)===month).sort((a,b)=>a.date>b.date?1:-1);
-
-  const dHeaders = ['日付','ツアー種別','お客様名','合計人数','メインガイド','サブガイド','支払合計','メイン分','サブ分'];
-  const dRows = allRecs.map(r => {
-    const p=pay(r), mAmt=r.subGuide?Math.round(p*SPLIT):p, sAmt=r.subGuide?Math.round(p*(1-SPLIT)):0;
-    return [r.date, r.tT, r.name, pax(r), r.mainGuide, r.subGuide||'', p, mAmt, r.subGuide?sAmt:''];
-  });
-
-  const BOM = '\uFEFF';
-  const section1 = [['■ ガイド報酬サマリー'], headers, ...rows];
-  const section2 = [[], ['■ 日次明細'], dHeaders, ...dRows];
-  const csv = BOM + [...section1, ...section2].map(row => row.map(csvEscape).join(',')).join('\r\n');
-  const monthLabel = month ? month.replace('-','年')+'月' : '全期間';
-  downloadCSV(csv, `ガイド報酬_${monthLabel}.csv`);
+  const mLabel=month?month.replace('-','年')+'月':'全期間';
+  const csv=[['■ ガイド報酬サマリー'],h1,...r1,[],['■ 日次明細'],h2,...r2].map(row=>row.map(csvEscape).join(',')).join('\r\n');
+  downloadCSV(csv, `ガイド報酬_${mLabel}.csv`);
   showToast('報酬CSVを出力しました 📄','success');
 }
 
-function downloadCSV(csv, filename) {
-  const blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href = url; a.download = filename; a.click();
-  URL.revokeObjectURL(url);
-}
-
 // ═══════════════════════════════════════════
-// FILTERS & SUMMARY
+// FILTERS & RENDER
 // ═══════════════════════════════════════════
-function getMonths(type) {
-  return [...new Set(DB[type].map(r=>r.date?.slice(0,7)).filter(Boolean))].sort();
-}
-function getGuides(type) {
-  return [...new Set([...DB[type].map(r=>r.mainGuide),...DB[type].map(r=>r.subGuide)].filter(Boolean))].sort();
-}
+function getMonths(type){return[...new Set(DB[type].map(r=>r.date?.slice(0,7)).filter(Boolean))].sort();}
+function getGuides(type){return[...new Set([...DB[type].map(r=>r.mainGuide),...DB[type].map(r=>r.subGuide)].filter(Boolean))].sort();}
 
-function populateFilters(type) {
-  const mSel=document.getElementById('filter-'+type+'-month'), cur=mSel.value;
+function populateFilters(type){
+  const mSel=document.getElementById('filter-'+type+'-month'),cur=mSel.value;
   mSel.innerHTML='<option value="">全期間</option>';
   getMonths(type).forEach(m=>{const[y,mo]=m.split('-');mSel.innerHTML+=`<option value="${m}"${m===cur?' selected':''}>${y}年${mo}月</option>`;});
-  const gSel=document.getElementById('filter-'+type+'-guide'), curG=gSel.value;
+  const gSel=document.getElementById('filter-'+type+'-guide'),curG=gSel.value;
   gSel.innerHTML='<option value="">全ガイド</option>';
   getGuides(type).forEach(g=>{gSel.innerHTML+=`<option value="${g}"${g===curG?' selected':''}>${g}</option>`;});
 }
 
-function renderSummary(type) {
+function renderSummary(type){
   const month=document.getElementById('filter-'+type+'-month')?.value;
   const recs=month?DB[type].filter(r=>r.date?.slice(0,7)===month):DB[type];
-  const tS=recs.reduce((s,r)=>s+(r.sales||0),0);
-  const tP=recs.reduce((s,r)=>s+pay(r),0);
-  const margin=tS>0?((tS-tP)/tS*100).toFixed(1):'—';
-  const totalPax=recs.reduce((s,r)=>s+pax(r),0);
+  const tS=recs.reduce((s,r)=>s+(r.sales||0),0),tP=recs.reduce((s,r)=>s+pay(r),0);
+  const margin=tS>0?((tS-tP)/tS*100).toFixed(1):'—',totalPax=recs.reduce((s,r)=>s+pax(r),0);
   const col=type==='forest'?'forest':'sky';
   document.getElementById('summary-'+type).innerHTML=`
     <div class="pill ${col}"><div class="pill-label">催行件数</div><div class="pill-value">${recs.length}</div><div class="pill-sub">件</div></div>
@@ -577,7 +596,7 @@ function renderSummary(type) {
     ${type==='forest'?`<div class="pill light"><div class="pill-label">粗利率（概算）</div><div class="pill-value">${margin}</div><div class="pill-sub">%</div></div>`:''}`;
 }
 
-function renderTable(type) {
+function renderTable(type){
   renderSummary(type);
   const month=document.getElementById('filter-'+type+'-month').value;
   const guide=document.getElementById('filter-'+type+'-guide').value;
@@ -588,15 +607,10 @@ function renderTable(type) {
     if(ttype&&r.type!==ttype)return false;
     return true;
   }).sort((a,b)=>a.date>b.date?1:-1);
-
   const tbody=document.getElementById('tbody-'+type);
-  if(!recs.length){
-    const cols=type==='forest'?16:15;
-    tbody.innerHTML=`<tr><td colspan="${cols}"><div class="empty"><div class="empty-icon">📭</div><p>記録がありません</p></div></td></tr>`;
-    return;
-  }
+  if(!recs.length){const cols=type==='forest'?16:15;tbody.innerHTML=`<tr><td colspan="${cols}"><div class="empty"><div class="empty-icon">📭</div><p>記録がありません</p></div></td></tr>`;return;}
   tbody.innerHTML=recs.map(r=>{
-    const p=pay(r), margin=r.sales>0?((r.sales-p)/r.sales*100).toFixed(1)+'%':'—';
+    const p=pay(r),margin=r.sales>0?((r.sales-p)/r.sales*100).toFixed(1)+'%':'—';
     const origin=r.pref||r.city||'—';
     const bc=r.type?.includes('モニタリング')?'badge-star':(type==='star'?'badge-sky':'badge-forest');
     return `<tr>
@@ -614,7 +628,7 @@ function renderTable(type) {
       <td class="mono"><strong>${fmt(p)}</strong></td>
       ${type==='forest'?`<td class="mono">${margin}</td>`:''}
       <td style="color:#888;font-size:11px;max-width:100px;overflow:hidden;text-overflow:ellipsis">${r.note||''}</td>
-      <td><button class="btn btn-danger btn-sm" onclick="deleteRecord('${type}',${r.id})">削除</button></td>
+      <td><button class="btn btn-danger btn-sm" onclick="deleteRecord('${type}','${r.id}')">削除</button></td>
     </tr>`;
   }).join('');
 }
@@ -622,93 +636,60 @@ function renderTable(type) {
 // ═══════════════════════════════════════════
 // REWARD
 // ═══════════════════════════════════════════
-function populateRewardMonths() {
+function populateRewardMonths(){
   const sel=document.getElementById('reward-month'),cur=sel.value;
   const months=[...new Set([...getMonths('forest'),...getMonths('star')])].sort();
   sel.innerHTML='<option value="">全期間</option>';
   months.forEach(m=>{const[y,mo]=m.split('-');sel.innerHTML+=`<option value="${m}"${m===cur?' selected':''}>${y}年${mo}月</option>`;});
 }
 
-function renderReward() {
+function renderReward(){
   populateRewardMonths();
   const month=document.getElementById('reward-month').value;
   const fR=month?DB.forest.filter(r=>r.date?.slice(0,7)===month):DB.forest;
   const sR=month?DB.star.filter(r=>r.date?.slice(0,7)===month):DB.star;
-  const allGuides=[...new Set([
-    ...DB.forest.map(r=>r.mainGuide),...DB.forest.map(r=>r.subGuide),
-    ...DB.star.map(r=>r.mainGuide),...DB.star.map(r=>r.subGuide)
-  ].filter(Boolean))].sort();
-
-  const stats={};
-  allGuides.forEach(g=>{stats[g]={fM:0,fS:0,fC:0,sM:0,sS:0,sC:0};});
-  fR.forEach(r=>{
-    const p=pay(r);
-    if(r.mainGuide&&stats[r.mainGuide]){stats[r.mainGuide].fM+=r.subGuide?Math.round(p*SPLIT):p;stats[r.mainGuide].fC++;}
-    if(r.subGuide &&stats[r.subGuide]){stats[r.subGuide].fS+=Math.round(p*(1-SPLIT));stats[r.subGuide].fC++;}
-  });
-  sR.forEach(r=>{
-    const p=pay(r);
-    if(r.mainGuide&&stats[r.mainGuide]){stats[r.mainGuide].sM+=r.subGuide?Math.round(p*SPLIT):p;stats[r.mainGuide].sC++;}
-    if(r.subGuide &&stats[r.subGuide]){stats[r.subGuide].sS+=Math.round(p*(1-SPLIT));stats[r.subGuide].sC++;}
-  });
-
+  const allGuides=[...new Set([...DB.forest.map(r=>r.mainGuide),...DB.forest.map(r=>r.subGuide),...DB.star.map(r=>r.mainGuide),...DB.star.map(r=>r.subGuide)].filter(Boolean))].sort();
+  const stats={};allGuides.forEach(g=>{stats[g]={fM:0,fS:0,fC:0,sM:0,sS:0,sC:0};});
+  fR.forEach(r=>{const p=pay(r);if(r.mainGuide&&stats[r.mainGuide]){stats[r.mainGuide].fM+=r.subGuide?Math.round(p*SPLIT):p;stats[r.mainGuide].fC++;}if(r.subGuide&&stats[r.subGuide]){stats[r.subGuide].fS+=Math.round(p*(1-SPLIT));stats[r.subGuide].fC++;}});
+  sR.forEach(r=>{const p=pay(r);if(r.mainGuide&&stats[r.mainGuide]){stats[r.mainGuide].sM+=r.subGuide?Math.round(p*SPLIT):p;stats[r.mainGuide].sC++;}if(r.subGuide&&stats[r.subGuide]){stats[r.subGuide].sS+=Math.round(p*(1-SPLIT));stats[r.subGuide].sC++;}});
   document.getElementById('guide-cards').innerHTML=allGuides.map(g=>{
     const s=stats[g],fT=s.fM+s.fS,sT=s.sM+s.sS,grand=fT+sT;
     return `<div class="guide-card ${G_COL[g]||'c-forest'}">
-      <div class="guide-name">${g}</div>
-      <div class="guide-count">計 ${s.fC+s.sC} 件</div>
+      <div class="guide-name">${g}</div><div class="guide-count">計 ${s.fC+s.sC} 件</div>
       <div class="guide-amount">${fmt(grand)}<small style="font-size:12px;font-weight:400;color:#888">円</small></div>
       <div class="guide-breakdown">🌲 森: <span>${fmt(fT)}円</span> (${s.fC}件)<br>✨ 星: <span>${fmt(sT)}円</span> (${s.sC}件)</div>
     </div>`;
   }).join('')||'<div class="empty"><div class="empty-icon">👤</div><p>データなし</p></div>';
-
   let tot={fC:0,fA:0,sC:0,sA:0};
   document.getElementById('reward-summary-body').innerHTML=allGuides.map(g=>{
     const s=stats[g],fA=s.fM+s.fS,sA=s.sM+s.sS;
     tot.fC+=s.fC;tot.fA+=fA;tot.sC+=s.sC;tot.sA+=sA;
-    return `<tr><td><strong>${g}</strong></td><td class="mono">${s.fC}</td><td class="mono">${fmt(fA)}</td>
-      <td class="mono">${s.sC}</td><td class="mono">${fmt(sA)}</td>
-      <td class="mono"><strong>${s.fC+s.sC}</strong></td>
-      <td class="mono"><strong style="color:var(--forest-mid)">${fmt(fA+sA)}</strong></td></tr>`;
-  }).join('')+`<tr style="background:var(--light);font-weight:700">
-    <td>合計</td><td class="mono">${tot.fC}</td><td class="mono">${fmt(tot.fA)}</td>
-    <td class="mono">${tot.sC}</td><td class="mono">${fmt(tot.sA)}</td>
-    <td class="mono">${tot.fC+tot.sC}</td><td class="mono">${fmt(tot.fA+tot.sA)}</td></tr>`;
+    return `<tr><td><strong>${g}</strong></td><td class="mono">${s.fC}</td><td class="mono">${fmt(fA)}</td><td class="mono">${s.sC}</td><td class="mono">${fmt(sA)}</td><td class="mono"><strong>${s.fC+s.sC}</strong></td><td class="mono"><strong style="color:var(--forest-mid)">${fmt(fA+sA)}</strong></td></tr>`;
+  }).join('')+`<tr style="background:var(--light);font-weight:700"><td>合計</td><td class="mono">${tot.fC}</td><td class="mono">${fmt(tot.fA)}</td><td class="mono">${tot.sC}</td><td class="mono">${fmt(tot.sA)}</td><td class="mono">${tot.fC+tot.sC}</td><td class="mono">${fmt(tot.fA+tot.sA)}</td></tr>`;
 }
 
-function renderDaily() {
+function renderDaily(){
   const month=document.getElementById('reward-month').value;
-  const all=[
-    ...DB.forest.map(r=>({...r,tT:'🌲 森'})),
-    ...DB.star.map(r=>({...r,tT:'✨ 星空'}))
-  ].filter(r=>!month||r.date?.slice(0,7)===month).sort((a,b)=>a.date>b.date?1:-1);
+  const all=[...DB.forest.map(r=>({...r,tT:'🌲 森'})),...DB.star.map(r=>({...r,tT:'✨ 星空'}))].filter(r=>!month||r.date?.slice(0,7)===month).sort((a,b)=>a.date>b.date?1:-1);
   document.getElementById('daily-tbody').innerHTML=all.map(r=>{
-    const p=pay(r),mAmt=r.subGuide?Math.round(p*SPLIT):p,sAmt=r.subGuide?Math.round(p*(1-SPLIT)):0;
+    const p=pay(r),mA=r.subGuide?Math.round(p*SPLIT):p,sA=r.subGuide?Math.round(p*(1-SPLIT)):0;
     const bc=r.tT.includes('森')?'badge-forest':'badge-sky';
-    return `<tr><td class="mono">${r.date}</td><td><span class="badge ${bc}">${r.tT}</span></td>
-      <td>${r.name}</td><td class="mono">${pax(r)}名</td>
-      <td><strong>${r.mainGuide}</strong></td><td>${r.subGuide||'—'}</td>
-      <td class="mono"><strong>${fmt(p)}</strong></td><td class="mono">${fmt(mAmt)}</td>
-      <td class="mono">${r.subGuide?fmt(sAmt):'—'}</td></tr>`;
+    return `<tr><td class="mono">${r.date}</td><td><span class="badge ${bc}">${r.tT}</span></td><td>${r.name}</td><td class="mono">${pax(r)}名</td><td><strong>${r.mainGuide}</strong></td><td>${r.subGuide||'—'}</td><td class="mono"><strong>${fmt(p)}</strong></td><td class="mono">${fmt(mA)}</td><td class="mono">${r.subGuide?fmt(sA):'—'}</td></tr>`;
   }).join('')||'<tr><td colspan="9"><div class="empty"><div class="empty-icon">📭</div><p>データなし</p></div></td></tr>';
 }
 
-function renderCombined() {
+function renderCombined(){
   const month=document.getElementById('reward-month').value;
   const forest=month?DB.forest.filter(r=>r.date?.slice(0,7)===month):DB.forest;
-  const star  =month?DB.star.filter(r=>r.date?.slice(0,7)===month):DB.star;
+  const star=month?DB.star.filter(r=>r.date?.slice(0,7)===month):DB.star;
   const guides=[...new Set([...forest.map(r=>r.mainGuide),...star.map(r=>r.mainGuide)].filter(Boolean))].sort();
-  const types =[...new Set([...forest.map(r=>r.type),...star.map(r=>r.type)])].sort();
+  const types=[...new Set([...forest.map(r=>r.type),...star.map(r=>r.type)])].sort();
   const wrap=document.getElementById('combined-wrap');
   if(!guides.length){wrap.innerHTML='<div class="empty"><div class="empty-icon">📭</div><p>データなし</p></div>';return;}
   let html=`<table><thead><tr><th>ガイド</th>${types.map(t=>`<th>${t}</th>`).join('')}<th>合計</th></tr></thead><tbody>`;
   guides.forEach(g=>{
     let tot=0;
-    const cells=types.map(t=>{
-      const recs=[...forest,...star].filter(r=>r.mainGuide===g&&r.type===t);
-      const amt=recs.reduce((s,r)=>{const p=pay(r);return s+(r.subGuide?Math.round(p*SPLIT):p);},0);
-      tot+=amt;return `<td class="mono">${amt>0?fmt(amt):'—'}</td>`;
-    }).join('');
+    const cells=types.map(t=>{const recs=[...forest,...star].filter(r=>r.mainGuide===g&&r.type===t);const amt=recs.reduce((s,r)=>{const p=pay(r);return s+(r.subGuide?Math.round(p*SPLIT):p);},0);tot+=amt;return`<td class="mono">${amt>0?fmt(amt):'—'}</td>`;}).join('');
     html+=`<tr><td><strong>${g}</strong></td>${cells}<td class="mono"><strong>${fmt(tot)}</strong></td></tr>`;
   });
   wrap.innerHTML=html+'</tbody></table>';
@@ -717,76 +698,68 @@ function renderCombined() {
 // ═══════════════════════════════════════════
 // CRUD
 // ═══════════════════════════════════════════
-function saveRecord(type) {
+async function saveRecord(type){
   const p=type==='forest'?'f':'s';
   const g=id=>document.getElementById(id).value;
   const date=g(p+'-date'),name=g(p+'-name').trim();
   if(!date||!name){showToast('催行日とお客様名は必須です','error');return;}
-  DB[type].push({
-    id:nextId(type), date, type:g(p+'-type'), name,
-    adult:+g(p+'-adult'), child:+g(p+'-child'), infant:+g(p+'-infant'), baby:+g(p+'-baby'),
-    male:+g(p+'-male'), female:+g(p+'-female'), group:g(p+'-group'),
-    pref:g(p+'-pref'), city:g(p+'-city'), stay:g(p+'-stay'), hotel:g(p+'-hotel'),
-    booking:g(p+'-booking'), mainGuide:g(p+'-main'), subGuide:g(p+'-sub'),
-    sales:+g(p+'-sales'), base:+g(p+'-base'), extra:+g(p+'-extra'), note:g(p+'-note')
-  });
-  save();
+  const btn=document.getElementById('save-btn-'+type);
+  btn.disabled=true;btn.textContent='保存中...';
+  const rec={date,type:g(p+'-type'),name,adult:+g(p+'-adult'),child:+g(p+'-child'),infant:+g(p+'-infant'),baby:+g(p+'-baby'),male:+g(p+'-male'),female:+g(p+'-female'),group:g(p+'-group'),pref:g(p+'-pref'),city:g(p+'-city'),stay:g(p+'-stay'),hotel:g(p+'-hotel'),booking:g(p+'-booking'),mainGuide:g(p+'-main'),subGuide:g(p+'-sub'),sales:+g(p+'-sales'),base:+g(p+'-base'),extra:+g(p+'-extra'),note:g(p+'-note')};
+  const {error}=await sb.from('tours').insert(localToDb(rec,type));
+  btn.disabled=false;btn.textContent='💾 保存';
+  if(error){showToast('保存エラー: '+error.message,'error');return;}
   closeModal(type);
-  populateFilters(type); renderTable(type);
-  populateRewardMonths();
   showToast(name+'さんの記録を保存しました','success');
 }
 
-function deleteRecord(type, id) {
+async function deleteRecord(type,id){
   if(!confirm('この記録を削除しますか？'))return;
-  DB[type]=DB[type].filter(r=>r.id!==id);
-  save(); populateFilters(type); renderTable(type); populateRewardMonths();
-  showToast('削除しました','info');
+  const{error}=await sb.from('tours').delete().eq('id',id);
+  if(error)showToast('削除エラー: '+error.message,'error');
+  else showToast('削除しました','info');
 }
 
 // ═══════════════════════════════════════════
-// NAV
+// NAV & MISC
 // ═══════════════════════════════════════════
-function showTab(name, el) {
+function refreshAll(){
+  ['forest','star'].forEach(t=>{populateFilters(t);renderTable(t);renderSummary(t);});
+  populateRewardMonths();
+  if(document.getElementById('page-reward').classList.contains('active'))renderReward();
+}
+
+function showTab(name,el){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('page-'+name).classList.add('active');
   (el||event.target).classList.add('active');
-  if(name==='reward') renderReward();
+  if(name==='reward')renderReward();
 }
-
-function showSub(page, sub, el) {
+function showSub(page,sub,el){
   document.querySelectorAll(`[id^="sub-${page}-"]`).forEach(e=>e.classList.remove('active'));
   document.querySelectorAll('.inner-tab').forEach(b=>b.classList.remove('active'));
   document.getElementById(`sub-${page}-${sub}`).classList.add('active');
   (el||event.target).classList.add('active');
-  if(sub==='daily') renderDaily();
-  if(sub==='combined') renderCombined();
+  if(sub==='daily')renderDaily();
+  if(sub==='combined')renderCombined();
 }
-
-function openModal(type) {
+function openModal(type){
   const p=type==='forest'?'f':'s';
-  if(!document.getElementById(p+'-date').value)
-    document.getElementById(p+'-date').value=new Date().toISOString().split('T')[0];
+  if(!document.getElementById(p+'-date').value)document.getElementById(p+'-date').value=new Date().toISOString().split('T')[0];
   document.getElementById('modal-'+type).classList.add('open');
 }
-function closeModal(type) { document.getElementById('modal-'+type).classList.remove('open'); }
-document.querySelectorAll('.modal-overlay').forEach(el=>{
-  el.addEventListener('click',e=>{if(e.target===el)el.classList.remove('open');});
-});
+function closeModal(type){document.getElementById('modal-'+type).classList.remove('open');}
+document.querySelectorAll('.modal-overlay').forEach(el=>{el.addEventListener('click',e=>{if(e.target===el)el.classList.remove('open');});});
 
-function addRule(type) {
+function addRule(type){
   const opts=(type==='forest'?['MOJI','あずみ','雄二','KOKI','MOMO','みほこさん']:['MOJI','KAZUNA','EMA','MOMO','KOKI']).map(o=>`<option>${o}</option>`).join('');
   const div=document.createElement('div');div.className='rule-row';
-  div.innerHTML=`<div class="form-group"><label>ガイド名</label><select><option>全ガイド（デフォルト）</option>${opts}</select></div>
-    <div class="form-group"><label>役割</label><select><option>メイン</option><option>サブ</option></select></div>
-    <div class="form-group"><label>メインへの分配率（%）</label><input type="number" value="70" min="0" max="100"></div>
-    <div><button class="btn btn-danger btn-sm" style="margin-top:20px" onclick="this.closest('.rule-row').remove()">削除</button></div>`;
+  div.innerHTML=`<div class="form-group"><label>ガイド名</label><select><option>全ガイド（デフォルト）</option>${opts}</select></div><div class="form-group"><label>役割</label><select><option>メイン</option><option>サブ</option></select></div><div class="form-group"><label>メインへの分配率（%）</label><input type="number" value="70" min="0" max="100"></div><div><button class="btn btn-danger btn-sm" style="margin-top:20px" onclick="this.closest('.rule-row').remove()">削除</button></div>`;
   document.getElementById('rules-'+type).appendChild(div);
 }
 function saveFees(){showToast('手数料率を保存しました','success');}
 
-// TOAST
 let toastT;
 function showToast(msg,type='info'){
   const t=document.getElementById('toast');
@@ -794,11 +767,8 @@ function showToast(msg,type='info'){
   clearTimeout(toastT);toastT=setTimeout(()=>{t.className='';},3000);
 }
 
-// INIT
-(function(){
-  ['forest','star'].forEach(t=>{populateFilters(t);renderTable(t);renderSummary(t);});
-  populateRewardMonths();
-})();
+// 起動
+init();
 </script>
 </body>
 </html>
