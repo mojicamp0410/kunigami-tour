@@ -441,7 +441,7 @@ async function init() {
     document.getElementById('loading-screen').classList.add('hidden');
     setStatus('connected');
     await loadAll();
-    subscribeRT();
+    setInterval(loadAll, 30000);
   } catch(e) {
     document.getElementById('loading-screen').classList.add('hidden');
     document.getElementById('error-screen').classList.add('show');
@@ -452,7 +452,7 @@ async function init() {
 function setStatus(s) {
   const dot = document.getElementById('status-dot');
   const txt = document.getElementById('status-text');
-  if (s==='connected') { dot.className='status-dot connected'; txt.textContent='リアルタイム同期中'; }
+  if (s==='connected') { dot.className='status-dot connected'; txt.textContent='Supabase接続中（30秒ごと更新）'; }
   else if (s==='syncing') { dot.className='status-dot syncing'; txt.textContent='同期中...'; }
 }
 
@@ -484,11 +484,7 @@ async function loadAll() {
   refreshAll();
 }
 
-function subscribeRT() {
-  sb.channel('tours-rt')
-    .on('postgres_changes', {event:'*', schema:'public', table:'tours'}, () => loadAll())
-    .subscribe();
-}
+
 
 // ═══════════════════════════════════════════
 // UTILS
