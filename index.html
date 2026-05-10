@@ -350,7 +350,7 @@ tr:hover td{background:#fafaf5}
 <!-- MODAL 森 -->
 <div class="modal-overlay" id="modal-forest">
   <div class="modal">
-    <h3>🌲 森のツアー記録を追加</h3>
+    <h3 id="modal-forest-title">🌲 森のツアー記録を追加</h3>
     <div class="form-grid">
       <div class="form-group"><label>ツアー催行日 *</label><input type="date" id="f-date"></div>
       <div class="form-group"><label>ツアーの種類 *</label><select id="f-type"><option>夜の森の探検ツアー</option><option>モニタリング</option></select></div>
@@ -377,6 +377,7 @@ tr:hover td{background:#fafaf5}
       <div class="form-group"><label>追加金額（円）</label><input type="number" id="f-extra" value="0" min="0"></div>
       <div class="form-group full"><label>備考</label><textarea id="f-note" rows="2"></textarea></div>
     </div>
+    <input type="hidden" id="f-edit-id" value="">
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('forest')">キャンセル</button>
       <button class="btn btn-primary" id="save-btn-forest" onclick="saveRecord('forest')">💾 保存</button>
@@ -387,7 +388,7 @@ tr:hover td{background:#fafaf5}
 <!-- MODAL 星空 -->
 <div class="modal-overlay" id="modal-star">
   <div class="modal">
-    <h3>✨ 星空ツアー記録を追加</h3>
+    <h3 id="modal-star-title">✨ 星空ツアー記録を追加</h3>
     <div class="form-grid">
       <div class="form-group"><label>ツアー催行日 *</label><input type="date" id="s-date"></div>
       <div class="form-group"><label>ツアーの種類 *</label><select id="s-type"><option>てぃんがーら</option><option>星語り（美ら星）</option><option>フォトツアー</option></select></div>
@@ -414,6 +415,7 @@ tr:hover td{background:#fafaf5}
       <div class="form-group"><label>追加金額（円）</label><input type="number" id="s-extra" value="0" min="0"></div>
       <div class="form-group full"><label>備考</label><textarea id="s-note" rows="2"></textarea></div>
     </div>
+    <input type="hidden" id="s-edit-id" value="">
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('star')">キャンセル</button>
       <button class="btn btn-sky" id="save-btn-star" onclick="saveRecord('star')">💾 保存</button>
@@ -624,7 +626,7 @@ function renderTable(type){
       <td class="mono"><strong>${fmt(p)}</strong></td>
       ${type==='forest'?`<td class="mono">${margin}</td>`:''}
       <td style="color:#888;font-size:11px;max-width:100px;overflow:hidden;text-overflow:ellipsis">${r.note||''}</td>
-      <td><button class="btn btn-danger btn-sm" onclick="deleteRecord('${type}','${r.id}')">削除</button></td>
+      <td style="display:flex;gap:4px"><button class="btn btn-sm" style="background:#e8f4fd;color:#1a3355" onclick="editRecord('${type}','${r.id}')">✏️ 編集</button><button class="btn btn-danger btn-sm" onclick="deleteRecord('${type}','${r.id}')">削除</button></td>
     </tr>`;
   }).join('');
 }
@@ -702,11 +704,17 @@ async function saveRecord(type){
   const btn=document.getElementById('save-btn-'+type);
   btn.disabled=true;btn.textContent='保存中...';
   const rec={date,type:g(p+'-type'),name,adult:+g(p+'-adult'),child:+g(p+'-child'),infant:+g(p+'-infant'),baby:+g(p+'-baby'),male:+g(p+'-male'),female:+g(p+'-female'),group:g(p+'-group'),pref:g(p+'-pref'),city:g(p+'-city'),stay:g(p+'-stay'),hotel:g(p+'-hotel'),booking:g(p+'-booking'),mainGuide:g(p+'-main'),subGuide:g(p+'-sub'),sales:+g(p+'-sales'),base:+g(p+'-base'),extra:+g(p+'-extra'),note:g(p+'-note')};
-  const {error}=await sb.from('tours').insert(localToDb(rec,type));
+  const editId=g(p+'-edit-id');
+  let error;
+  if(editId){
+    ({error}=await sb.from('tours').update(localToDb(rec,type)).eq('id',editId));
+  } else {
+    ({error}=await sb.from('tours').insert(localToDb(rec,type)));
+  }
   btn.disabled=false;btn.textContent='💾 保存';
   if(error){showToast('保存エラー: '+error.message,'error');return;}
   closeModal(type);
-  showToast(name+'さんの記録を保存しました','success');
+  showToast(name+'さんの記録を'+(editId?'更新':'保存')+'しました','success');
 }
 
 async function deleteRecord(type,id){
@@ -742,10 +750,50 @@ function showSub(page,sub,el){
 }
 function openModal(type){
   const p=type==='forest'?'f':'s';
+  document.getElementById(p+'-edit-id').value='';
+  const titles={forest:'🌲 森のツアー記録を追加',star:'✨ 星空ツアー記録を追加'};
+  document.getElementById('modal-'+type+'-title').textContent=titles[type];
   if(!document.getElementById(p+'-date').value)document.getElementById(p+'-date').value=new Date().toISOString().split('T')[0];
   document.getElementById('modal-'+type).classList.add('open');
 }
-function closeModal(type){document.getElementById('modal-'+type).classList.remove('open');}
+function closeModal(type){
+  document.getElementById('modal-'+type).classList.remove('open');
+  // フォームリセット
+  const p=type==='forest'?'f':'s';
+  document.getElementById(p+'-edit-id').value='';
+  document.getElementById(p+'-date').value='';
+  document.getElementById(p+'-name').value='';
+}
+function editRecord(type,id){
+  const r=DB[type].find(r=>r.id===id);
+  if(!r)return;
+  const p=type==='forest'?'f':'s';
+  const titles={forest:'🌲 森のツアー記録を編集',star:'✨ 星空ツアー記録を編集'};
+  document.getElementById('modal-'+type+'-title').textContent=titles[type];
+  document.getElementById(p+'-edit-id').value=id;
+  document.getElementById(p+'-date').value=r.date;
+  document.getElementById(p+'-type').value=r.type;
+  document.getElementById(p+'-name').value=r.name;
+  document.getElementById(p+'-adult').value=r.adult;
+  document.getElementById(p+'-child').value=r.child;
+  document.getElementById(p+'-infant').value=r.infant;
+  document.getElementById(p+'-baby').value=r.baby;
+  document.getElementById(p+'-male').value=r.male;
+  document.getElementById(p+'-female').value=r.female;
+  document.getElementById(p+'-group').value=r.group;
+  document.getElementById(p+'-pref').value=r.pref;
+  document.getElementById(p+'-city').value=r.city;
+  document.getElementById(p+'-stay').value=r.stay;
+  document.getElementById(p+'-hotel').value=r.hotel;
+  document.getElementById(p+'-booking').value=r.booking;
+  document.getElementById(p+'-main').value=r.mainGuide;
+  document.getElementById(p+'-sub').value=r.subGuide;
+  document.getElementById(p+'-sales').value=r.sales;
+  document.getElementById(p+'-base').value=r.base;
+  document.getElementById(p+'-extra').value=r.extra;
+  document.getElementById(p+'-note').value=r.note;
+  document.getElementById('modal-'+type).classList.add('open');
+}
 document.querySelectorAll('.modal-overlay').forEach(el=>{el.addEventListener('click',e=>{if(e.target===el)el.classList.remove('open');});});
 
 function addRule(type){
