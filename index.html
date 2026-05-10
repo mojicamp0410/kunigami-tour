@@ -246,9 +246,9 @@ tr:hover td{background:#fafaf5}
     <div class="card-body">
       <div class="table-wrap">
         <table><thead><tr>
-          <th>催行日</th><th>種別</th><th>お客様</th><th>人数</th><th>グループ</th><th>出身</th>
+          <th>催行日</th><th>催行</th><th>種別</th><th>お客様</th><th>人数</th><th>グループ</th><th>出身</th>
           <th>申込</th><th>メインG</th><th>サブG</th><th>売上</th><th>ベース</th><th>追加</th>
-          <th>支払計</th><th>備考</th><th></th>
+          <th>支払計</th><th>粗利率</th><th>備考</th><th></th>
         </tr></thead><tbody id="tbody-star"></tbody></table>
       </div>
     </div>
@@ -421,6 +421,11 @@ tr:hover td{background:#fafaf5}
     <div class="form-grid">
       <div class="form-group"><label>ツアー催行日 *</label><input type="date" id="s-date"></div>
       <div class="form-group"><label>ツアーの種類 *</label><select id="s-type"><option>てぃんがーら</option><option>星語り（美ら星）</option><option>フォトツアー</option></select></div>
+      <div class="form-group"><label>催行ステータス *</label>
+        <select id="s-conducted" style="font-weight:700">
+          <option value="true">✅ 催行</option>
+          <option value="false">❌ 不催行（雨天・曇天等）</option>
+        </select></div>
       <div class="form-group"><label>お客様名（苗字）*</label><input type="text" id="s-name" placeholder="ひらがな or ローマ字"></div>
       <div class="form-group"><label>大人（12歳以上）</label><input type="number" id="s-adult" value="1" min="0"></div>
       <div class="form-group"><label>子ども（6〜12歳）</label><input type="number" id="s-child" value="0" min="0"></div>
@@ -523,7 +528,7 @@ function dbToLocal(r) {
     male:r.male||0, female:r.female||0, group:r.grp||'',
     pref:r.pref||'', city:r.city||'', overseas:r.overseas||'', stay:r.stay||'', hotel:r.hotel||'',
     booking:r.booking||'', mainGuide:r.main_guide||'', subGuide:r.sub_guide||'',
-    sales:r.sales||0, base:r.base_amt||0, extra:r.extra_amt||0, note:r.note||'' };
+    sales:r.sales||0, base:r.base_amt||0, extra:r.extra_amt||0, note:r.note||'', conducted:r.conducted!==false };
 }
 function localToDb(rec, tourType) {
   return { tour_type:tourType, date:rec.date, type:rec.type, name:rec.name,
@@ -531,7 +536,7 @@ function localToDb(rec, tourType) {
     male:rec.male, female:rec.female, grp:rec.group,
     pref:rec.pref, city:rec.city, overseas:rec.overseas, stay:rec.stay, hotel:rec.hotel,
     booking:rec.booking, main_guide:rec.mainGuide, sub_guide:rec.subGuide,
-    sales:rec.sales, base_amt:rec.base, extra_amt:rec.extra, note:rec.note };
+    sales:rec.sales, base_amt:rec.base, extra_amt:rec.extra, note:rec.note, conducted:rec.conducted };
 }
 
 async function loadAll() {
@@ -582,7 +587,7 @@ function exportCSV(type) {
   }).sort((a,b)=>a.date>b.date?1:-1);
 
   const hF=['催行日','種別','お客様名','大人','子ども','幼児','乳幼児','合計人数','男性','女性','グループ','出身（県外）','出身（県内）','出身（海外）','滞在先','ホテル名','申込方法','メインガイド','サブガイド','売上実績','ベース金額','追加金額','支払合計','粗利率（%）','備考'];
-  const hS=['催行日','種別','お客様名','大人','子ども','幼児','乳幼児','合計人数','男性','女性','グループ','出身（県外）','出身（県内）','出身（海外）','滞在先','ホテル名','申込方法','メインガイド','サブガイド','売上実績','ベース金額','追加金額','支払合計','備考'];
+  const hS=['催行日','催行ステータス','種別','お客様名','大人','子ども','幼児','乳幼児','合計人数','男性','女性','グループ','出身（県外）','出身（県内）','出身（海外）','滞在先','ホテル名','申込方法','メインガイド','サブガイド','売上実績','ベース金額','追加金額','支払合計','粗利率（%）','備考'];
   const headers = type==='forest' ? hF : hS;
 
   const rows = recs.map(r=>{
@@ -605,7 +610,7 @@ function exportRewardCSV() {
   const stats={};
   allGuides.forEach(g=>{stats[g]={fM:0,fS:0,fC:0,sM:0,sS:0,sC:0};});
   fR.forEach(r=>{const p=pay(r);if(r.mainGuide&&stats[r.mainGuide]){stats[r.mainGuide].fM+=r.subGuide?Math.round(p*SPLIT):p;stats[r.mainGuide].fC++;}if(r.subGuide&&stats[r.subGuide]){stats[r.subGuide].fS+=Math.round(p*(1-SPLIT));stats[r.subGuide].fC++;}});
-  sR.forEach(r=>{const p=pay(r);if(r.mainGuide&&stats[r.mainGuide]){stats[r.mainGuide].sM+=r.subGuide?Math.round(p*SPLIT):p;stats[r.mainGuide].sC++;}if(r.subGuide&&stats[r.subGuide]){stats[r.subGuide].sS+=Math.round(p*(1-SPLIT));stats[r.subGuide].sC++;}});
+  sR.filter(r=>r.conducted!==false).forEach(r=>{const p=pay(r);if(r.mainGuide&&stats[r.mainGuide]){stats[r.mainGuide].sM+=r.subGuide?Math.round(p*SPLIT):p;stats[r.mainGuide].sC++;}if(r.subGuide&&stats[r.subGuide]){stats[r.subGuide].sS+=Math.round(p*(1-SPLIT));stats[r.subGuide].sC++;}});
 
   const h1=['ガイド','森：件数','森：報酬','星：件数','星：報酬','合計件数','合計報酬'];
   const r1=allGuides.map(g=>{const s=stats[g],fA=s.fM+s.fS,sA=s.sM+s.sS;return[g,s.fC,fA,s.sC,sA,s.fC+s.sC,fA+sA];});
@@ -643,13 +648,22 @@ function renderSummary(type){
   const recs=month?DB[type].filter(r=>r.date?.slice(0,7)===month):DB[type];
   const tS=recs.reduce((s,r)=>s+(r.sales||0),0),tP=recs.reduce((s,r)=>s+pay(r),0);
   const margin=tS>0?((tS-tP)/tS*100).toFixed(1):'—',totalPax=recs.reduce((s,r)=>s+pax(r),0);
+  const conductedCount=recs.filter(r=>r.conducted!==false).length;
+  const conductedRate=recs.length>0?(conductedCount/recs.length*100).toFixed(1):'—';
+  const margins=recs.filter(r=>r.sales>0&&r.conducted!==false).map(r=>((r.sales-pay(r))/r.sales*100));
+  const bestMargin=margins.length>0?Math.max(...margins).toFixed(1):'—';
   const col=type==='forest'?'forest':'sky';
   document.getElementById('summary-'+type).innerHTML=`
     <div class="pill ${col}"><div class="pill-label">催行件数</div><div class="pill-value">${recs.length}</div><div class="pill-sub">件</div></div>
     <div class="pill ${col}"><div class="pill-label">総来場者</div><div class="pill-value">${fmt(totalPax)}</div><div class="pill-sub">名</div></div>
     <div class="pill gold"><div class="pill-label">売上合計</div><div class="pill-value">${fmt(tS)}</div><div class="pill-sub">円</div></div>
     <div class="pill light"><div class="pill-label">ガイド支払計</div><div class="pill-value">${fmt(tP)}</div><div class="pill-sub">円</div></div>
-    ${type==='forest'?`<div class="pill light"><div class="pill-label">粗利率（概算）</div><div class="pill-value">${margin}</div><div class="pill-sub">%</div></div>`:''}`;
+    ${type==='forest'?`<div class="pill light"><div class="pill-label">粗利率（概算）</div><div class="pill-value">${margin}</div><div class="pill-sub">%</div></div>`:''}
+    ${type==='star'?`
+      <div class="pill light"><div class="pill-label">粗利率（概算）</div><div class="pill-value">${margin}</div><div class="pill-sub">%</div></div>
+      <div class="pill light"><div class="pill-label">催行率</div><div class="pill-value">${conductedRate}</div><div class="pill-sub">% (${conductedCount}/${recs.length}件)</div></div>
+      <div class="pill gold"><div class="pill-label">最高粗利率</div><div class="pill-value">${bestMargin}</div><div class="pill-sub">%</div></div>
+    `:''}`;
 }
 
 function renderTable(type){
@@ -664,13 +678,14 @@ function renderTable(type){
     return true;
   }).sort((a,b)=>a.date>b.date?1:-1);
   const tbody=document.getElementById('tbody-'+type);
-  if(!recs.length){const cols=type==='forest'?16:15;tbody.innerHTML=`<tr><td colspan="${cols}"><div class="empty"><div class="empty-icon">📭</div><p>記録がありません</p></div></td></tr>`;return;}
+  if(!recs.length){const cols=type==='forest'?16:17;tbody.innerHTML=`<tr><td colspan="${cols}"><div class="empty"><div class="empty-icon">📭</div><p>記録がありません</p></div></td></tr>`;return;}
   tbody.innerHTML=recs.map(r=>{
     const p=pay(r),margin=r.sales>0?((r.sales-p)/r.sales*100).toFixed(1)+'%':'—';
     const origin=r.overseas?'🌐 '+r.overseas:(r.pref||r.city||'—');
     const bc=r.type?.includes('モニタリング')?'badge-star':(type==='star'?'badge-sky':'badge-forest');
     return `<tr>
       <td class="mono">${r.date||''}</td>
+      ${type==='star'?`<td>${r.conducted!==false?'<span class=\'badge\' style=\'background:#eafaf1;color:#1e7e34\'>✅ 催行</span>':'<span class=\'badge\' style=\'background:#fdf0ef;color:#c0392b\'>❌ 不催行</span>'}</td>`:''}
       <td><span class="badge ${bc}">${r.type||''}</span></td>
       <td><strong>${r.name||''}</strong></td>
       <td class="mono">${pax(r)}名</td>
@@ -682,7 +697,7 @@ function renderTable(type){
       <td class="mono">${fmt(r.base)}</td>
       <td class="mono">${fmt(r.extra)}</td>
       <td class="mono"><strong>${fmt(p)}</strong></td>
-      ${type==='forest'?`<td class="mono">${margin}</td>`:''}
+      <td class="mono">${margin}</td>
       <td style="color:#888;font-size:11px;max-width:100px;overflow:hidden;text-overflow:ellipsis">${r.note||''}</td>
       <td style="display:flex;gap:4px"><button class="btn btn-sm" style="background:#e8f4fd;color:#1a3355" onclick="editRecord('${type}','${r.id}')">✏️ 編集</button><button class="btn btn-danger btn-sm" onclick="deleteRecord('${type}','${r.id}')">削除</button></td>
     </tr>`;
@@ -761,7 +776,7 @@ async function saveRecord(type){
   if(!date||!name){showToast('催行日とお客様名は必須です','error');return;}
   const btn=document.getElementById('save-btn-'+type);
   btn.disabled=true;btn.textContent='保存中...';
-  const rec={date,type:g(p+'-type'),name,adult:+g(p+'-adult'),child:+g(p+'-child'),infant:+g(p+'-infant'),baby:+g(p+'-baby'),male:+g(p+'-male'),female:+g(p+'-female'),group:g(p+'-group'),pref:g(p+'-pref'),city:g(p+'-city'),stay:g(p+'-stay'),hotel:g(p+'-hotel'),overseas:g(p+'-overseas'),booking:g(p+'-booking'),mainGuide:g(p+'-main'),subGuide:g(p+'-sub'),sales:+g(p+'-sales'),base:+g(p+'-base'),extra:+g(p+'-extra'),note:g(p+'-note')};
+  const rec={date,type:g(p+'-type'),name,adult:+g(p+'-adult'),child:+g(p+'-child'),infant:+g(p+'-infant'),baby:+g(p+'-baby'),male:+g(p+'-male'),female:+g(p+'-female'),group:g(p+'-group'),pref:g(p+'-pref'),city:g(p+'-city'),stay:g(p+'-stay'),hotel:g(p+'-hotel'),conducted:p==='s'?(g(p+'-conducted')==='true'):true,overseas:g(p+'-overseas'),booking:g(p+'-booking'),mainGuide:g(p+'-main'),subGuide:g(p+'-sub'),sales:+g(p+'-sales'),base:+g(p+'-base'),extra:+g(p+'-extra'),note:g(p+'-note')};
   const editId=g(p+'-edit-id');
   let error;
   if(editId){
@@ -842,6 +857,7 @@ function editRecord(type,id){
   document.getElementById(p+'-pref').value=r.pref;
   document.getElementById(p+'-city').value=r.city;
   document.getElementById(p+'-overseas').value=r.overseas||'';
+  if(type==='star'){const sel=document.getElementById('s-conducted');if(sel)sel.value=r.conducted!==false?'true':'false';}
   document.getElementById(p+'-stay').value=r.stay;
   document.getElementById(p+'-hotel').value=r.hotel;
   document.getElementById(p+'-booking').value=r.booking;
