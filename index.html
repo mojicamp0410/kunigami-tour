@@ -500,8 +500,12 @@ tr:hover td{background:#fafaf5}
         <select id="confirm-month"></select>
       </div>
       <div class="form-group">
-        <label>対象ガイド *</label>
-        <select id="confirm-guide"><option value="">全ガイド（全員分）</option></select>
+        <label>対象ガイド（氏名を正しく入力）</label>
+        <input type="text" id="confirm-guide-input" placeholder="例：山田 太郎" style="margin-bottom:5px">
+        <select id="confirm-guide" onchange="syncGuideInput(this.value)" style="font-size:11px;color:#888">
+          <option value="">▼ 登録済みガイドから選ぶ（任意）</option>
+        </select>
+        <span style="font-size:10px;color:#aaa">※ 空欄のまま出力すると全ガイド分まとめて出力</span>
       </div>
       <div class="form-group">
         <label>発行日</label>
@@ -1004,13 +1008,18 @@ function openConfirmModal() {
     ...DB.forest.map(r=>r.mainGuide),...DB.forest.map(r=>r.subGuide),
     ...DB.star.map(r=>r.mainGuide),...DB.star.map(r=>r.subGuide)
   ].filter(Boolean))].sort();
-  guideSel.innerHTML = '<option value="">全ガイド（全員分）</option>';
+  guideSel.innerHTML = '<option value="">▼ 登録済みガイドから選ぶ（任意）</option>';
   allGuides.forEach(g => { guideSel.innerHTML += `<option value="${g}">${g}</option>`; });
+  document.getElementById('confirm-guide-input').value = '';
 
   const today = new Date().toISOString().split('T')[0];
   document.getElementById('confirm-issue-date').value = today;
   document.getElementById('confirm-pay-date').value = '';
   document.getElementById('modal-confirm').classList.add('open');
+}
+
+function syncGuideInput(val) {
+  if (val) document.getElementById('confirm-guide-input').value = val;
 }
 
 function buildConfirmPage(guideName, month, issueDate, payDate) {
@@ -1127,7 +1136,8 @@ function buildConfirmPage(guideName, month, issueDate, payDate) {
 
 function printConfirm() {
   const month = document.getElementById('confirm-month').value;
-  const guide = document.getElementById('confirm-guide').value;
+  const guideInput = document.getElementById('confirm-guide-input').value.trim();
+  const guide = guideInput || document.getElementById('confirm-guide').value;
   const issueDate = document.getElementById('confirm-issue-date').value;
   const payDate = document.getElementById('confirm-pay-date').value;
 
