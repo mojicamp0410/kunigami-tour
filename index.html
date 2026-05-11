@@ -500,12 +500,15 @@ tr:hover td{background:#fafaf5}
         <select id="confirm-month"></select>
       </div>
       <div class="form-group">
-        <label>対象ガイド（氏名を正しく入力）</label>
-        <input type="text" id="confirm-guide-input" placeholder="例：山田 太郎" style="margin-bottom:5px">
-        <select id="confirm-guide" onchange="syncGuideInput(this.value)" style="font-size:11px;color:#888">
-          <option value="">▼ 登録済みガイドから選ぶ（任意）</option>
+        <label>対象ガイド *</label>
+        <select id="confirm-guide" onchange="syncGuideInput(this.value)">
+          <option value="">全ガイド（全員分）</option>
         </select>
-        <span style="font-size:10px;color:#aaa">※ 空欄のまま出力すると全ガイド分まとめて出力</span>
+      </div>
+      <div class="form-group">
+        <label>確認書に印字する名前</label>
+        <input type="text" id="confirm-guide-input" placeholder="例：山田 太郎（敬称なし）">
+        <span style="font-size:10px;color:#aaa">※ 空欄の場合はガイドIDをそのまま使用</span>
       </div>
       <div class="form-group">
         <label>発行日</label>
@@ -1008,7 +1011,7 @@ function openConfirmModal() {
     ...DB.forest.map(r=>r.mainGuide),...DB.forest.map(r=>r.subGuide),
     ...DB.star.map(r=>r.mainGuide),...DB.star.map(r=>r.subGuide)
   ].filter(Boolean))].sort();
-  guideSel.innerHTML = '<option value="">▼ 登録済みガイドから選ぶ（任意）</option>';
+  guideSel.innerHTML = '<option value="">全ガイド（全員分）</option>';
   allGuides.forEach(g => { guideSel.innerHTML += `<option value="${g}">${g}</option>`; });
   document.getElementById('confirm-guide-input').value = '';
 
@@ -1019,10 +1022,13 @@ function openConfirmModal() {
 }
 
 function syncGuideInput(val) {
-  if (val) document.getElementById('confirm-guide-input').value = val;
+  // ガイドを選び直したら印字名をリセット（再入力を促す）
+  document.getElementById('confirm-guide-input').value = '';
+  if (val) document.getElementById('confirm-guide-input').placeholder = `例：${val} の正式氏名`;
 }
 
-function buildConfirmPage(guideName, month, issueDate, payDate) {
+function buildConfirmPage(guideName, month, issueDate, payDate, displayName) {
+  const printName = displayName || guideName;
   const fR = DB.forest.filter(r => r.date?.slice(0,7)===month && (r.mainGuide===guideName||r.subGuide===guideName));
   const sR = DB.star.filter(r => r.date?.slice(0,7)===month && r.conducted!==false && (r.mainGuide===guideName||r.subGuide===guideName));
   const allRecs = [
@@ -1076,7 +1082,7 @@ function buildConfirmPage(guideName, month, issueDate, payDate) {
 
     <div class="confirm-meta">
       <div class="confirm-meta-left">
-        <strong style="font-size:13pt">${guideName}　様</strong><br>
+        <strong style="font-size:13pt">${printName}　様</strong><br>
         <span style="font-size:8.5pt;color:#555">下記の通り、ガイド業務報酬をご確認ください。</span>
       </div>
       <div class="confirm-meta-right" style="font-size:8.5pt;color:#555">
@@ -1136,8 +1142,8 @@ function buildConfirmPage(guideName, month, issueDate, payDate) {
 
 function printConfirm() {
   const month = document.getElementById('confirm-month').value;
+  const guide = document.getElementById('confirm-guide').value;
   const guideInput = document.getElementById('confirm-guide-input').value.trim();
-  const guide = guideInput || document.getElementById('confirm-guide').value;
   const issueDate = document.getElementById('confirm-issue-date').value;
   const payDate = document.getElementById('confirm-pay-date').value;
 
@@ -1153,7 +1159,11 @@ function printConfirm() {
     return fR.length + sR.length > 0;
   }).sort();
 
-  const pages = allGuides.map(g => buildConfirmPage(g, month, issueDate, payDate)).filter(Boolean).join('');
+  const pages = allGuides.map(g => {
+    // 特定ガイド指定の場合は入力した印字名、全員の場合はIDをそのまま使用
+    const displayName = (guide && guideInput) ? guideInput : g;
+    return buildConfirmPage(g, month, issueDate, payDate, displayName);
+  }).filter(Boolean).join('');
   if (!pages) { showToast('該当データがありません', 'error'); return; }
 
   const printArea = document.getElementById('print-area');
