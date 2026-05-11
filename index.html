@@ -931,7 +931,27 @@ function openModal(type){
   document.getElementById(p+'-edit-id').value='';
   const titles={forest:'🌲 森のツアー記録を追加',star:'✨ 星空ツアー記録を追加'};
   document.getElementById('modal-'+type+'-title').textContent=titles[type];
-  if(!document.getElementById(p+'-date').value)document.getElementById(p+'-date').value=new Date().toISOString().split('T')[0];
+  // 日付は保持、それ以外をリセット
+  const today=new Date().toISOString().split('T')[0];
+  if(!document.getElementById(p+'-date').value) document.getElementById(p+'-date').value=today;
+  // セレクトをデフォルトに戻す
+  const selects=['type','group','pref','city','stay','booking','main','sub'];
+  selects.forEach(s=>{const el=document.getElementById(p+'-'+s);if(el)el.selectedIndex=0;});
+  if(type==='star'){const c=document.getElementById('s-conducted');if(c)c.selectedIndex=0;}
+  // テキスト・数値をリセット
+  document.getElementById(p+'-name').value='';
+  document.getElementById(p+'-hotel').value='';
+  document.getElementById(p+'-overseas').value='';
+  document.getElementById(p+'-note').value='';
+  document.getElementById(p+'-adult').value=1;
+  document.getElementById(p+'-child').value=0;
+  document.getElementById(p+'-infant').value=0;
+  document.getElementById(p+'-baby').value=0;
+  document.getElementById(p+'-male').value=0;
+  document.getElementById(p+'-female').value=0;
+  document.getElementById(p+'-sales').value=0;
+  document.getElementById(p+'-base').value=type==='forest'?8000:9000;
+  document.getElementById(p+'-extra').value=0;
   document.getElementById('modal-'+type).classList.add('open');
 }
 function closeModal(type){
