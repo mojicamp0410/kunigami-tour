@@ -177,7 +177,7 @@ tr:hover td{background:#fafaf5}
     <nav class="tabs">
       <button class="tab-btn active" onclick="showTab('forest',this)">🌲 森のツアー</button>
       <button class="tab-btn" onclick="showTab('star',this)">✨ 星空ツアー</button>
-      <button class="tab-btn" onclick="showTab('reward',this)">💴 ガイド報酬</button>
+      <button class="tab-btn" onclick="showTab('reward',this)">📊 管理</button>
       <button class="tab-btn" onclick="showTab('rules',this)">⚙️ ルール設定</button>
     </nav>
     <div class="header-status">
@@ -255,10 +255,10 @@ tr:hover td{background:#fafaf5}
   </div>
 </div>
 
-<!-- ガイド報酬 -->
+<!-- 管理 -->
 <div id="page-reward" class="page">
   <div class="page-header">
-    <div class="page-title">💴 ガイド報酬集計</div>
+    <div class="page-title">📊 管理</div>
     <div class="btn-group">
       <label style="font-size:12px;font-weight:700;align-self:center">対象月：</label>
       <select id="reward-month" onchange="renderReward()" style="font-size:12px;padding:7px 11px;border:1.5px solid #ddd;border-radius:var(--rs);font-family:inherit"><option value="">全期間</option></select>
@@ -270,6 +270,7 @@ tr:hover td{background:#fafaf5}
     <button class="inner-tab active" onclick="showSub('reward','monthly',this)">月次集計</button>
     <button class="inner-tab" onclick="showSub('reward','daily',this)">日次明細</button>
     <button class="inner-tab" onclick="showSub('reward','combined',this)">ツアー横断</button>
+    <button class="inner-tab" onclick="showSub('reward','records',this)">全記録・編集</button>
   </div>
   <div id="sub-reward-monthly" class="sub-page active">
     <div id="guide-cards" class="guide-cards"></div>
@@ -298,6 +299,34 @@ tr:hover td{background:#fafaf5}
     <div class="card">
       <div class="card-header"><h2>🔄 ガイド×ツアー横断</h2></div>
       <div class="card-body"><div class="table-wrap" id="combined-wrap"></div></div>
+    </div>
+  </div>
+
+  <div id="sub-reward-records" class="sub-page">
+    <div class="card">
+      <div class="card-header">
+        <h2>📋 全記録・編集</h2>
+        <div class="filter-bar">
+          <select id="filter-admin-month" onchange="renderAdminRecords()"><option value="">全期間</option></select>
+          <select id="filter-admin-tour" onchange="renderAdminRecords()">
+            <option value="">森・星空両方</option>
+            <option value="forest">🌲 森のツアー</option>
+            <option value="star">✨ 星空ツアー</option>
+          </select>
+          <select id="filter-admin-guide" onchange="renderAdminRecords()"><option value="">全ガイド</option></select>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>催行日</th><th>ツアー</th><th>種別</th><th>お客様</th><th>人数</th>
+              <th>申込</th><th>メインG</th><th>サブG</th><th>売上</th><th>ベース</th><th>追加</th><th>支払計</th><th>備考</th><th></th>
+            </tr></thead>
+            <tbody id="admin-records-tbody"></tbody>
+          </table>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -333,6 +362,17 @@ tr:hover td{background:#fafaf5}
     </div>
   </div>
   <div class="card">
+    <div class="card-header"><h2>💰 売上単価設定（申込方法 × ツアー種別）</h2></div>
+    <div class="card-body">
+      <p style="font-size:12px;color:#888;margin-bottom:14px">大人・子ども・幼児それぞれの単価を設定します。記録追加時に申込方法とツアー種別から自動計算されます。</p>
+      <div id="price-settings"></div>
+      <div style="margin-top:14px;display:flex;gap:10px">
+        <button class="btn btn-gold" onclick="savePrices()">💾 単価を保存</button>
+        <button class="btn btn-ghost" onclick="resetPrices()">↩ デフォルトに戻す</button>
+      </div>
+    </div>
+  </div>
+  <div class="card">
     <div class="card-header"><h2>📌 申込方法別 手数料率</h2></div>
     <div class="card-body">
       <div class="form-grid">
@@ -356,9 +396,9 @@ tr:hover td{background:#fafaf5}
       <div class="form-group"><label>ツアー催行日 *</label><input type="date" id="f-date" onchange="autoCalcForest()"></div>
       <div class="form-group"><label>ツアーの種類 *</label><select id="f-type" onchange="autoCalcForest()"><option>夜の森の探検ツアー</option><option>モニタリング</option></select></div>
       <div class="form-group"><label>お客様名（苗字）*</label><input type="text" id="f-name" placeholder="ひらがな or ローマ字"></div>
-      <div class="form-group"><label>大人（12歳以上）</label><input type="number" id="f-adult" value="1" min="0" oninput="autoCalcForest()"></div>
-      <div class="form-group"><label>子ども（6〜12歳）</label><input type="number" id="f-child" value="0" min="0" oninput="autoCalcForest()"></div>
-      <div class="form-group"><label>幼児（3〜5歳）</label><input type="number" id="f-infant" value="0" min="0"></div>
+      <div class="form-group"><label>大人（12歳以上）</label><input type="number" id="f-adult" value="1" min="0" oninput="autoCalcForest();autoCalcSales('forest')"></div>
+      <div class="form-group"><label>子ども（6〜12歳）</label><input type="number" id="f-child" value="0" min="0" oninput="autoCalcForest();autoCalcSales('forest')"></div>
+      <div class="form-group"><label>幼児（3〜5歳）</label><input type="number" id="f-infant" value="0" min="0" oninput="autoCalcSales('forest')"></div>
       <div class="form-group"><label>乳幼児（0〜2歳）</label><input type="number" id="f-baby" value="0" min="0"></div>
       <div class="form-group"><label>男性人数</label><input type="number" id="f-male" value="0" min="0"></div>
       <div class="form-group"><label>女性人数</label><input type="number" id="f-female" value="0" min="0"></div>
@@ -399,7 +439,7 @@ tr:hover td{background:#fafaf5}
       <div class="form-group"><label>滞在先エリア</label>
         <select id="f-stay"><option value="">—</option><option>国頭村森林公園</option><option>国頭村</option><option>名護市</option><option>恩納村</option><option>本部町</option><option>今帰仁村</option><option>那覇市</option><option>北谷町</option><option>不明</option></select></div>
       <div class="form-group"><label>宿泊先ホテル名</label><input type="text" id="f-hotel"></div>
-      <div class="form-group"><label>申込方法 *</label><select id="f-booking"><option>なっぷオプション</option><option>ベルトラ</option><option>オクマ</option><option>直接申し込み</option><option>取材</option><option>イベント</option></select></div>
+      <div class="form-group"><label>申込方法 *</label><select id="f-booking" onchange="autoCalcSales('forest')"><option>なっぷオプション</option><option>ベルトラ</option><option>オクマ</option><option>直接申し込み</option><option>取材</option><option>イベント</option></select></div>
       <div class="form-group"><label>メインガイド *</label><select id="f-main" onchange="autoCalcForest()"><option>MOJI</option><option>あずみ</option><option>雄二</option><option>KOKI</option><option>MOMO</option><option>みほこさん</option></select></div>
       <div class="form-group"><label>サブガイド</label><select id="f-sub"><option value="">—</option><option>MOJI</option><option>あずみ</option><option>雄二</option><option>KOKI</option><option>MOMO</option><option>みほこさん</option></select></div>
       <div class="form-group"><label>売上実績（円）</label><input type="number" id="f-sales" value="0" min="0"></div>
@@ -421,16 +461,16 @@ tr:hover td{background:#fafaf5}
     <h3 id="modal-star-title">✨ 星空ツアー記録を追加</h3>
     <div class="form-grid">
       <div class="form-group"><label>ツアー催行日 *</label><input type="date" id="s-date"></div>
-      <div class="form-group"><label>ツアーの種類 *</label><select id="s-type"><option>てぃんがーら</option><option>星語り（美ら星）</option><option>フォトツアー</option></select></div>
+      <div class="form-group"><label>ツアーの種類 *</label><select id="s-type" onchange="autoCalcSales('star')"><option>てぃんがーら</option><option>星語り（美ら星）</option><option>フォトツアー</option></select></div>
       <div class="form-group"><label>催行ステータス *</label>
         <select id="s-conducted" style="font-weight:700">
           <option value="true">✅ 催行</option>
           <option value="false">❌ 不催行（雨天・曇天等）</option>
         </select></div>
       <div class="form-group"><label>お客様名（苗字）*</label><input type="text" id="s-name" placeholder="ひらがな or ローマ字"></div>
-      <div class="form-group"><label>大人（12歳以上）</label><input type="number" id="s-adult" value="1" min="0"></div>
-      <div class="form-group"><label>子ども（6〜12歳）</label><input type="number" id="s-child" value="0" min="0"></div>
-      <div class="form-group"><label>幼児（3〜5歳）</label><input type="number" id="s-infant" value="0" min="0"></div>
+      <div class="form-group"><label>大人（12歳以上）</label><input type="number" id="s-adult" value="1" min="0" oninput="autoCalcSales('star')"></div>
+      <div class="form-group"><label>子ども（6〜12歳）</label><input type="number" id="s-child" value="0" min="0" oninput="autoCalcSales('star')"></div>
+      <div class="form-group"><label>幼児（3〜5歳）</label><input type="number" id="s-infant" value="0" min="0" oninput="autoCalcSales('star')"></div>
       <div class="form-group"><label>乳幼児（0〜2歳）</label><input type="number" id="s-baby" value="0" min="0"></div>
       <div class="form-group"><label>男性人数</label><input type="number" id="s-male" value="0" min="0"></div>
       <div class="form-group"><label>女性人数</label><input type="number" id="s-female" value="0" min="0"></div>
@@ -471,7 +511,7 @@ tr:hover td{background:#fafaf5}
       <div class="form-group"><label>滞在先エリア</label>
         <select id="s-stay"><option value="">—</option><option>国頭村森林公園</option><option>国頭村</option><option>名護市</option><option>恩納村</option><option>本部町</option><option>今帰仁村</option><option>那覇市</option><option>北谷町</option><option>不明</option></select></div>
       <div class="form-group"><label>宿泊先ホテル名</label><input type="text" id="s-hotel"></div>
-      <div class="form-group"><label>申込方法 *</label><select id="s-booking"><option>なっぷオプション</option><option>ベルトラ</option><option>オクマ</option><option>直接申し込み</option><option>取材</option><option>イベント</option></select></div>
+      <div class="form-group"><label>申込方法 *</label><select id="s-booking" onchange="autoCalcSales('star')"><option>なっぷオプション</option><option>ベルトラ</option><option>オクマ</option><option>直接申し込み</option><option>取材</option><option>イベント</option></select></div>
       <div class="form-group"><label>メインガイド *</label><select id="s-main"><option>MOJI</option><option>KAZUNA</option><option>EMA</option><option>MOMO</option><option>KOKI</option></select></div>
       <div class="form-group"><label>サブガイド</label><select id="s-sub"><option value="">—</option><option>MOJI</option><option>KAZUNA</option><option>EMA</option><option>MOMO</option><option>KOKI</option></select></div>
       <div class="form-group"><label>売上実績（円）</label><input type="number" id="s-sales" value="0" min="0"></div>
@@ -916,7 +956,8 @@ function showTab(name,el){
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('page-'+name).classList.add('active');
   (el||event.target).classList.add('active');
-  if(name==='reward')renderReward();
+  if(name==='reward'){renderReward();populateAdminFilters();}
+  if(name==='rules')renderPriceSettings();
 }
 function showSub(page,sub,el){
   document.querySelectorAll(`[id^="sub-${page}-"]`).forEach(e=>e.classList.remove('active'));
@@ -925,6 +966,7 @@ function showSub(page,sub,el){
   (el||event.target).classList.add('active');
   if(sub==='daily')renderDaily();
   if(sub==='combined')renderCombined();
+  if(sub==='records')renderAdminRecords();
 }
 function openModal(type){
   const p=type==='forest'?'f':'s';
@@ -954,6 +996,7 @@ function openModal(type){
   document.getElementById(p+'-extra').value=0;
   document.getElementById('modal-'+type).classList.add('open');
   if(type==='forest') autoCalcForest();
+  autoCalcSales(type);
 }
 function closeModal(type){
   document.getElementById('modal-'+type).classList.remove('open');
@@ -1245,7 +1288,165 @@ function autoCalcForest() {
   document.getElementById('f-extra-hint').textContent = isFirst ? hint2 : `✓ ${billedPax}名 × ¥${EXTRA_PER_PERSON.toLocaleString()}（全員追加）`;
 }
 
+
+// ═══════════════════════════════════════════
+// 売上単価設定
+// ═══════════════════════════════════════════
+const PRICE_KEY = 'yntPrices_v1';
+
+const DEFAULT_PRICES = {
+  'なっぷオプション': { '夜の森の探検ツアー': {adult:0, child:0, infant:0}, 'モニタリング': {adult:0, child:0, infant:0}, 'てぃんがーら': {adult:0, child:0, infant:0}, '星語り（美ら星）': {adult:0, child:0, infant:0}, 'フォトツアー': {adult:0, child:0, infant:0} },
+  'ベルトラ':        { '夜の森の探検ツアー': {adult:0, child:0, infant:0}, 'モニタリング': {adult:0, child:0, infant:0}, 'てぃんがーら': {adult:0, child:0, infant:0}, '星語り（美ら星）': {adult:0, child:0, infant:0}, 'フォトツアー': {adult:0, child:0, infant:0} },
+  'オクマ':          { '夜の森の探検ツアー': {adult:0, child:0, infant:0}, 'モニタリング': {adult:0, child:0, infant:0}, 'てぃんがーら': {adult:0, child:0, infant:0}, '星語り（美ら星）': {adult:0, child:0, infant:0}, 'フォトツアー': {adult:0, child:0, infant:0} },
+  '直接申し込み':    { '夜の森の探検ツアー': {adult:0, child:0, infant:0}, 'モニタリング': {adult:0, child:0, infant:0}, 'てぃんがーら': {adult:0, child:0, infant:0}, '星語り（美ら星）': {adult:0, child:0, infant:0}, 'フォトツアー': {adult:0, child:0, infant:0} },
+  '取材':            { '夜の森の探検ツアー': {adult:0, child:0, infant:0}, 'モニタリング': {adult:0, child:0, infant:0}, 'てぃんがーら': {adult:0, child:0, infant:0}, '星語り（美ら星）': {adult:0, child:0, infant:0}, 'フォトツアー': {adult:0, child:0, infant:0} },
+  'イベント':        { '夜の森の探検ツアー': {adult:0, child:0, infant:0}, 'モニタリング': {adult:0, child:0, infant:0}, 'てぃんがーら': {adult:0, child:0, infant:0}, '星語り（美ら星）': {adult:0, child:0, infant:0}, 'フォトツアー': {adult:0, child:0, infant:0} },
+};
+
+let PRICES = {};
+function loadPrices() {
+  try { PRICES = JSON.parse(localStorage.getItem(PRICE_KEY)) || JSON.parse(JSON.stringify(DEFAULT_PRICES)); }
+  catch { PRICES = JSON.parse(JSON.stringify(DEFAULT_PRICES)); }
+}
+function savePrices() {
+  // フォームから値を収集
+  const bookings = Object.keys(DEFAULT_PRICES);
+  const tourTypes = ['夜の森の探検ツアー','モニタリング','てぃんがーら','星語り（美ら星）','フォトツアー'];
+  bookings.forEach(b => {
+    tourTypes.forEach(t => {
+      ['adult','child','infant'].forEach(ag => {
+        const el = document.getElementById(`price_${b}_${t}_${ag}`);
+        if (el && PRICES[b] && PRICES[b][t]) PRICES[b][t][ag] = parseInt(el.value)||0;
+      });
+    });
+  });
+  localStorage.setItem(PRICE_KEY, JSON.stringify(PRICES));
+  showToast('単価を保存しました','success');
+}
+function resetPrices() {
+  if (!confirm('単価をデフォルト値に戻しますか？')) return;
+  PRICES = JSON.parse(JSON.stringify(DEFAULT_PRICES));
+  localStorage.setItem(PRICE_KEY, JSON.stringify(PRICES));
+  renderPriceSettings();
+  showToast('デフォルトに戻しました','info');
+}
+
+function renderPriceSettings() {
+  const bookings  = Object.keys(DEFAULT_PRICES);
+  const tourTypes = ['夜の森の探検ツアー','モニタリング','てぃんがーら','星語り（美ら星）','フォトツアー'];
+  let html = '';
+  bookings.forEach(b => {
+    html += `<div style="margin-bottom:16px"><strong style="font-size:12px;display:block;margin-bottom:8px;color:var(--forest-mid)">📋 ${b}</strong>`;
+    html += `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:8px">`;
+    tourTypes.forEach(t => {
+      const p = PRICES[b]?.[t] || {adult:0,child:0,infant:0};
+      const safeId = (s) => s.replace(/[（）・]/g,'_');
+      html += `<div style="background:var(--light);border-radius:6px;padding:10px 12px;font-size:11px">
+        <div style="font-weight:700;margin-bottom:6px;color:#555">${t}</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <label>大人</label><input type="number" id="price_${safeId(b)}_${safeId(t)}_adult" value="${p.adult}" min="0" style="width:70px;font-size:11px;padding:4px 6px">
+          <label>子ども</label><input type="number" id="price_${safeId(b)}_${safeId(t)}_child" value="${p.child}" min="0" style="width:70px;font-size:11px;padding:4px 6px">
+          <label>幼児</label><input type="number" id="price_${safeId(b)}_${safeId(t)}_infant" value="${p.infant}" min="0" style="width:70px;font-size:11px;padding:4px 6px">
+        </div>
+      </div>`;
+    });
+    html += '</div></div>';
+  });
+  const el = document.getElementById('price-settings');
+  if (el) el.innerHTML = html;
+}
+
+function calcSales(booking, tourType, adult, child, infant) {
+  const safeB = booking, safeT = tourType;
+  const p = (PRICES[safeB] && PRICES[safeB][safeT]) ? PRICES[safeB][safeT] : {adult:0,child:0,infant:0};
+  return (adult * p.adult) + (child * p.child) + (infant * p.infant);
+}
+
+// 売上自動計算をフォームに反映
+function autoCalcSales(type) {
+  const p = type === 'forest' ? 'f' : 's';
+  const booking  = document.getElementById(p+'-booking').value;
+  const tourType = document.getElementById(p+'-type').value;
+  const adult    = parseInt(document.getElementById(p+'-adult').value)  || 0;
+  const child    = parseInt(document.getElementById(p+'-child').value)  || 0;
+  const infant   = parseInt(document.getElementById(p+'-infant').value) || 0;
+  const sales    = calcSales(booking, tourType, adult, child, infant);
+  document.getElementById(p+'-sales').value = sales;
+}
+
+// ═══════════════════════════════════════════
+// 全記録・編集（管理タブ）
+// ═══════════════════════════════════════════
+function populateAdminFilters() {
+  const mSel = document.getElementById('filter-admin-month');
+  if (!mSel) return;
+  const cur = mSel.value;
+  const months = [...new Set([...getMonths('forest'),...getMonths('star')])].sort();
+  mSel.innerHTML = '<option value="">全期間</option>';
+  months.forEach(m => { const [y,mo]=m.split('-'); mSel.innerHTML+=`<option value="${m}"${m===cur?' selected':''}>${y}年${mo}月</option>`; });
+
+  const gSel = document.getElementById('filter-admin-guide');
+  const curG = gSel.value;
+  const guides = [...new Set([...DB.forest.map(r=>r.mainGuide),...DB.star.map(r=>r.mainGuide)].filter(Boolean))].sort();
+  gSel.innerHTML = '<option value="">全ガイド</option>';
+  guides.forEach(g => { gSel.innerHTML+=`<option value="${g}"${g===curG?' selected':''}>${g}</option>`; });
+}
+
+function renderAdminRecords() {
+  populateAdminFilters();
+  const month = document.getElementById('filter-admin-month').value;
+  const tour  = document.getElementById('filter-admin-tour').value;
+  const guide = document.getElementById('filter-admin-guide').value;
+
+  const fRecs = DB.forest.filter(r => {
+    if (month && r.date?.slice(0,7)!==month) return false;
+    if (guide && r.mainGuide!==guide && r.subGuide!==guide) return false;
+    return true;
+  }).map(r=>({...r,tType:'forest',tLabel:'🌲 森'}));
+
+  const sRecs = DB.star.filter(r => {
+    if (month && r.date?.slice(0,7)!==month) return false;
+    if (guide && r.mainGuide!==guide && r.subGuide!==guide) return false;
+    return true;
+  }).map(r=>({...r,tType:'star',tLabel:'✨ 星空'}));
+
+  let all = [];
+  if (!tour || tour==='forest') all = all.concat(fRecs);
+  if (!tour || tour==='star')   all = all.concat(sRecs);
+  all.sort((a,b)=>a.date>b.date?1:-1);
+
+  const tbody = document.getElementById('admin-records-tbody');
+  if (!all.length) {
+    tbody.innerHTML='<tr><td colspan="14"><div class="empty"><div class="empty-icon">📭</div><p>記録がありません</p></div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = all.map(r => {
+    const p = pay(r);
+    const bc = r.tType==='forest'?'badge-forest':'badge-sky';
+    return `<tr>
+      <td class="mono">${r.date||''}</td>
+      <td><span class="badge ${bc}">${r.tLabel}</span></td>
+      <td style="font-size:11px">${r.type||''}</td>
+      <td><strong>${r.name||''}</strong></td>
+      <td class="mono">${pax(r)}名</td>
+      <td><span class="badge badge-gray" style="font-size:10px">${r.booking||''}</span></td>
+      <td>${r.mainGuide||''}</td>
+      <td>${r.subGuide||'—'}</td>
+      <td class="mono">${fmt(r.sales)}</td>
+      <td class="mono">${fmt(r.base)}</td>
+      <td class="mono">${fmt(r.extra)}</td>
+      <td class="mono"><strong>${fmt(p)}</strong></td>
+      <td style="color:#888;font-size:11px;max-width:80px;overflow:hidden;text-overflow:ellipsis">${r.note||''}</td>
+      <td style="display:flex;gap:4px">
+        <button class="btn btn-sm" style="background:#e8f4fd;color:#1a3355" onclick="editRecord('${r.tType}','${r.id}')">✏️</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteRecord('${r.tType}','${r.id}')">削除</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
 // 起動
+loadPrices();
 init();
 </script>
 </body>
