@@ -263,6 +263,7 @@ tr:hover td{background:#fafaf5}
       <label style="font-size:12px;font-weight:700;align-self:center">対象月：</label>
       <select id="reward-month" onchange="renderReward()" style="font-size:12px;padding:7px 11px;border:1.5px solid #ddd;border-radius:var(--rs);font-family:inherit"><option value="">全期間</option></select>
       <button class="btn btn-gold" onclick="exportRewardCSV()">⬇ 報酬CSV</button>
+      <button class="btn btn-primary" onclick="openConfirmModal()">📄 確認書を出力</button>
     </div>
   </div>
   <div class="inner-tabs">
@@ -487,6 +488,103 @@ tr:hover td{background:#fafaf5}
 </div>
 
 <div id="toast"></div>
+
+<!-- 確認書モーダル -->
+<div class="modal-overlay" id="modal-confirm">
+  <div class="modal" style="max-width:480px">
+    <h3>📄 ガイド報酬確認書を出力</h3>
+    <p style="font-size:12px;color:#888;margin-bottom:16px">ガイドごと・月ごとにA4 PDFを出力します。</p>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>対象月 *</label>
+        <select id="confirm-month"></select>
+      </div>
+      <div class="form-group">
+        <label>対象ガイド *</label>
+        <select id="confirm-guide"><option value="">全ガイド（全員分）</option></select>
+      </div>
+      <div class="form-group">
+        <label>発行日</label>
+        <input type="date" id="confirm-issue-date">
+      </div>
+      <div class="form-group">
+        <label>振込予定日</label>
+        <input type="date" id="confirm-pay-date">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('confirm')">キャンセル</button>
+      <button class="btn btn-primary" onclick="printConfirm()">🖨️ PDF出力（印刷）</button>
+    </div>
+  </div>
+</div>
+
+<!-- PDF印刷エリア（非表示） -->
+<div id="print-area" style="display:none"></div>
+
+<style>
+@media print {
+  body > *:not(#print-area) { display: none !important; }
+  #print-area {
+    display: block !important;
+    font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
+  }
+  @page { size: A4; margin: 15mm 18mm; }
+}
+
+.confirm-page {
+  width: 210mm;
+  min-height: 297mm;
+  padding: 18mm 20mm;
+  font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', 'Zen Kaku Gothic New', sans-serif;
+  font-size: 10pt;
+  color: #111;
+  page-break-after: always;
+  box-sizing: border-box;
+}
+.confirm-page:last-child { page-break-after: auto; }
+
+.confirm-header { margin-bottom: 8mm; }
+.confirm-issuer { font-size: 9pt; color: #444; margin-bottom: 6mm; text-align: right; }
+.confirm-title { font-size: 18pt; font-weight: 900; text-align: center; letter-spacing: .1em; margin-bottom: 2mm; }
+.confirm-subtitle { font-size: 9pt; text-align: center; color: #555; margin-bottom: 8mm; }
+
+.confirm-meta { display: flex; justify-content: space-between; margin-bottom: 6mm; font-size: 9pt; }
+.confirm-meta-left { line-height: 2; }
+.confirm-meta-right { text-align: right; line-height: 2; }
+
+.confirm-greeting { font-size: 9.5pt; line-height: 1.9; margin-bottom: 5mm; }
+
+.confirm-table { width: 100%; border-collapse: collapse; margin-bottom: 5mm; font-size: 8.5pt; }
+.confirm-table th { background: #1a3a2a; color: #fff; padding: 5px 8px; text-align: center; font-weight: 700; white-space: nowrap; }
+.confirm-table td { padding: 5px 8px; border-bottom: 1px solid #ddd; vertical-align: middle; }
+.confirm-table tr:nth-child(even) td { background: #f8faf8; }
+.confirm-table .num { text-align: right; font-family: 'Courier New', monospace; }
+.confirm-table .center { text-align: center; }
+.confirm-table .conducted-yes { color: #1e7e34; font-weight: 700; }
+.confirm-table .conducted-no { color: #c0392b; }
+
+.confirm-total-box { border: 2px solid #1a3a2a; border-radius: 6px; padding: 6mm 8mm; margin-bottom: 6mm; display: flex; align-items: center; justify-content: space-between; }
+.confirm-total-label { font-size: 12pt; font-weight: 700; }
+.confirm-total-amount { font-size: 20pt; font-weight: 900; color: #1a3a2a; font-family: 'Courier New', monospace; }
+.confirm-total-amount small { font-size: 11pt; }
+
+.confirm-breakdown { font-size: 8.5pt; color: #555; margin-bottom: 6mm; line-height: 1.8; }
+.confirm-breakdown table { width: 100%; border-collapse: collapse; }
+.confirm-breakdown td { padding: 2px 6px; }
+.confirm-breakdown td:last-child { text-align: right; font-family: 'Courier New', monospace; }
+
+.confirm-note { font-size: 8.5pt; color: #555; border-top: 1px solid #ddd; padding-top: 4mm; margin-bottom: 8mm; line-height: 1.8; }
+
+.confirm-sign { margin-top: 8mm; }
+.confirm-sign-title { font-size: 9pt; font-weight: 700; margin-bottom: 3mm; }
+.confirm-sign-box { display: flex; gap: 10mm; }
+.confirm-sign-field { flex: 1; }
+.confirm-sign-label { font-size: 8pt; color: #555; margin-bottom: 1mm; }
+.confirm-sign-line { border-bottom: 1.5px solid #333; height: 12mm; margin-bottom: 1mm; }
+.confirm-sign-hint { font-size: 7.5pt; color: #aaa; }
+</style>
+
 
 <script>
 // ═══════════════════════════════════════════
@@ -884,6 +982,174 @@ function showToast(msg,type='info'){
   const t=document.getElementById('toast');
   t.textContent=msg;t.className='show '+type;
   clearTimeout(toastT);toastT=setTimeout(()=>{t.className='';},3000);
+}
+
+
+// ═══════════════════════════════════════════
+// 確認書出力
+// ═══════════════════════════════════════════
+function openConfirmModal() {
+  const monthSel = document.getElementById('confirm-month');
+  const guideSel = document.getElementById('confirm-guide');
+  const months = [...new Set([...getMonths('forest'),...getMonths('star')])].sort();
+  monthSel.innerHTML = '<option value="">月を選択してください</option>';
+  months.forEach(m => {
+    const [y,mo] = m.split('-');
+    monthSel.innerHTML += `<option value="${m}">${y}年${mo}月</option>`;
+  });
+  // デフォルトは最新月
+  if (months.length) monthSel.value = months[months.length - 1];
+
+  const allGuides = [...new Set([
+    ...DB.forest.map(r=>r.mainGuide),...DB.forest.map(r=>r.subGuide),
+    ...DB.star.map(r=>r.mainGuide),...DB.star.map(r=>r.subGuide)
+  ].filter(Boolean))].sort();
+  guideSel.innerHTML = '<option value="">全ガイド（全員分）</option>';
+  allGuides.forEach(g => { guideSel.innerHTML += `<option value="${g}">${g}</option>`; });
+
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('confirm-issue-date').value = today;
+  document.getElementById('confirm-pay-date').value = '';
+  document.getElementById('modal-confirm').classList.add('open');
+}
+
+function buildConfirmPage(guideName, month, issueDate, payDate) {
+  const fR = DB.forest.filter(r => r.date?.slice(0,7)===month && (r.mainGuide===guideName||r.subGuide===guideName));
+  const sR = DB.star.filter(r => r.date?.slice(0,7)===month && r.conducted!==false && (r.mainGuide===guideName||r.subGuide===guideName));
+  const allRecs = [
+    ...fR.map(r=>({...r, tourLabel:'🌲 森', isStar:false})),
+    ...sR.map(r=>({...r, tourLabel:'✨ 星空', isStar:true}))
+  ].sort((a,b)=>a.date>b.date?1:-1);
+
+  if (!allRecs.length) return '';
+
+  const [y,mo] = month.split('-');
+  let totalMain = 0, totalSub = 0;
+
+  const rows = allRecs.map(r => {
+    const p = (r.base||0)+(r.extra||0);
+    const isMain = r.mainGuide === guideName;
+    const hasSub = !!r.subGuide;
+    let myAmt;
+    if (isMain) {
+      myAmt = hasSub ? Math.round(p * SPLIT) : p;
+      totalMain += myAmt;
+    } else {
+      myAmt = Math.round(p * (1-SPLIT));
+      totalSub += myAmt;
+    }
+    const totalPax = (r.adult||0)+(r.child||0)+(r.infant||0)+(r.baby||0);
+    return `<tr>
+      <td class="center">${r.date?.slice(5).replace('-','/')}</td>
+      <td>${r.tourLabel} ${r.type||''}</td>
+      <td class="center">${r.name||''}</td>
+      <td class="center">${totalPax}名</td>
+      <td class="num">${(r.base||0).toLocaleString()}</td>
+      <td class="num">${(r.extra||0).toLocaleString()}</td>
+      <td class="num"><strong>${myAmt.toLocaleString()}</strong></td>
+    </tr>`;
+  }).join('');
+
+  const grandTotal = totalMain + totalSub;
+  const issueDateStr = issueDate ? new Date(issueDate).toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric'}) : '';
+  const payDateStr = payDate ? new Date(payDate).toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric'}) : '別途ご連絡';
+
+  const breakdownRows = [
+    totalMain > 0 ? `<tr><td>　メインガイド分</td><td>¥${totalMain.toLocaleString()}</td></tr>` : '',
+    totalSub  > 0 ? `<tr><td>　サブガイド分</td><td>¥${totalSub.toLocaleString()}</td></tr>` : '',
+  ].filter(Boolean).join('');
+
+  return `
+  <div class="confirm-page">
+    <div class="confirm-issuer">発行元：キャンプ沖縄事業協同組合　　発行日：${issueDateStr}</div>
+    <div class="confirm-title">ガイド業務報酬 確認書</div>
+    <div class="confirm-subtitle">${y}年${mo}月分</div>
+
+    <div class="confirm-meta">
+      <div class="confirm-meta-left">
+        <strong style="font-size:13pt">${guideName}　様</strong><br>
+        <span style="font-size:8.5pt;color:#555">下記の通り、ガイド業務報酬をご確認ください。</span>
+      </div>
+      <div class="confirm-meta-right" style="font-size:8.5pt;color:#555">
+        振込予定日：<strong style="color:#111">${payDateStr}</strong>
+      </div>
+    </div>
+
+    <div class="confirm-total-box">
+      <div class="confirm-total-label">今月のご報酬合計</div>
+      <div class="confirm-total-amount">¥${grandTotal.toLocaleString()}<small> 円</small></div>
+    </div>
+
+    ${breakdownRows ? `<div class="confirm-breakdown"><table>${breakdownRows}</table></div>` : ''}
+
+    <table class="confirm-table">
+      <thead>
+        <tr>
+          <th>日付</th><th>ツアー種別</th><th>お客様</th><th>人数</th>
+          <th>ベース</th><th>追加</th><th>報酬</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+      <tfoot>
+        <tr style="background:#f0efea">
+          <td colspan="6" style="text-align:right;font-weight:700;padding:6px 8px">合計</td>
+          <td class="num" style="font-weight:900;font-size:10pt">¥${grandTotal.toLocaleString()}</td>
+        </tr>
+      </tfoot>
+    </table>
+
+    <div class="confirm-note">
+      ※ 不催行（雨天・曇天等）のツアーは報酬対象外となります。<br>
+      ※ ご不明点はキャンプ沖縄事業協同組合までお問い合わせください。
+    </div>
+
+    <div class="confirm-sign">
+      <div class="confirm-sign-title">■ ご確認・ご署名</div>
+      <p style="font-size:8.5pt;color:#444;margin-bottom:5mm;line-height:1.8">
+        上記報酬内容をご確認いただき、相違なければサインをお願いいたします。<br>
+        サイン後、本書をキャンプ沖縄事業協同組合までご提出ください。
+      </p>
+      <div class="confirm-sign-box">
+        <div class="confirm-sign-field" style="flex:2">
+          <div class="confirm-sign-label">ガイド　サイン</div>
+          <div class="confirm-sign-line" style="height:18mm"></div>
+          <div class="confirm-sign-hint">上記内容を確認しました</div>
+        </div>
+        <div class="confirm-sign-field" style="flex:1">
+          <div class="confirm-sign-label">確認日</div>
+          <div class="confirm-sign-line" style="height:18mm"></div>
+          <div class="confirm-sign-hint">　　年　　月　　日</div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function printConfirm() {
+  const month = document.getElementById('confirm-month').value;
+  const guide = document.getElementById('confirm-guide').value;
+  const issueDate = document.getElementById('confirm-issue-date').value;
+  const payDate = document.getElementById('confirm-pay-date').value;
+
+  if (!month) { showToast('対象月を選択してください', 'error'); return; }
+
+  const allGuides = guide ? [guide] : [...new Set([
+    ...DB.forest.map(r=>r.mainGuide),...DB.forest.map(r=>r.subGuide),
+    ...DB.star.filter(r=>r.conducted!==false).map(r=>r.mainGuide),
+    ...DB.star.filter(r=>r.conducted!==false).map(r=>r.subGuide)
+  ].filter(Boolean))].filter(g => {
+    const fR = DB.forest.filter(r=>r.date?.slice(0,7)===month&&(r.mainGuide===g||r.subGuide===g));
+    const sR = DB.star.filter(r=>r.date?.slice(0,7)===month&&r.conducted!==false&&(r.mainGuide===g||r.subGuide===g));
+    return fR.length + sR.length > 0;
+  }).sort();
+
+  const pages = allGuides.map(g => buildConfirmPage(g, month, issueDate, payDate)).filter(Boolean).join('');
+  if (!pages) { showToast('該当データがありません', 'error'); return; }
+
+  const printArea = document.getElementById('print-area');
+  printArea.innerHTML = pages;
+  closeModal('confirm');
+  setTimeout(() => { window.print(); }, 300);
 }
 
 // 起動
