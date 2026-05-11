@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>やんばるツアー管理</title>
+<title>国頭村森林公園アクティビティ管理システム</title>
 <link href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@300;400;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.4/dist/umd/supabase.min.js"></script>
 <style>
@@ -157,7 +157,7 @@ tr:hover td{background:#fafaf5}
 
 <!-- LOADING -->
 <div id="loading-screen">
-  <div class="logo-big">🌿 <span>やんばる</span>ツアー管理</div>
+  <div class="logo-big">🌿 <span>国頭村森林公園</span>アクティビティ管理</div>
   <div class="spinner-lg"></div>
   <p>Supabaseに接続中...</p>
 </div>
@@ -173,7 +173,7 @@ tr:hover td{background:#fafaf5}
 <!-- HEADER -->
 <header>
   <div class="header-inner">
-    <div class="logo">🌿 <span>やんばる</span>ツアー管理</div>
+    <div class="logo">🌿 <span>国頭村森林公園</span>アクティビティ管理</div>
     <nav class="tabs">
       <button class="tab-btn active" onclick="showTab('forest',this)">🌲 森のツアー</button>
       <button class="tab-btn" onclick="showTab('star',this)">✨ 星空ツアー</button>
@@ -353,11 +353,11 @@ tr:hover td{background:#fafaf5}
   <div class="modal">
     <h3 id="modal-forest-title">🌲 森のツアー記録を追加</h3>
     <div class="form-grid">
-      <div class="form-group"><label>ツアー催行日 *</label><input type="date" id="f-date"></div>
-      <div class="form-group"><label>ツアーの種類 *</label><select id="f-type"><option>夜の森の探検ツアー</option><option>モニタリング</option></select></div>
+      <div class="form-group"><label>ツアー催行日 *</label><input type="date" id="f-date" onchange="autoCalcForest()"></div>
+      <div class="form-group"><label>ツアーの種類 *</label><select id="f-type" onchange="autoCalcForest()"><option>夜の森の探検ツアー</option><option>モニタリング</option></select></div>
       <div class="form-group"><label>お客様名（苗字）*</label><input type="text" id="f-name" placeholder="ひらがな or ローマ字"></div>
-      <div class="form-group"><label>大人（12歳以上）</label><input type="number" id="f-adult" value="1" min="0"></div>
-      <div class="form-group"><label>子ども（6〜12歳）</label><input type="number" id="f-child" value="0" min="0"></div>
+      <div class="form-group"><label>大人（12歳以上）</label><input type="number" id="f-adult" value="1" min="0" oninput="autoCalcForest()"></div>
+      <div class="form-group"><label>子ども（6〜12歳）</label><input type="number" id="f-child" value="0" min="0" oninput="autoCalcForest()"></div>
       <div class="form-group"><label>幼児（3〜5歳）</label><input type="number" id="f-infant" value="0" min="0"></div>
       <div class="form-group"><label>乳幼児（0〜2歳）</label><input type="number" id="f-baby" value="0" min="0"></div>
       <div class="form-group"><label>男性人数</label><input type="number" id="f-male" value="0" min="0"></div>
@@ -400,11 +400,11 @@ tr:hover td{background:#fafaf5}
         <select id="f-stay"><option value="">—</option><option>国頭村森林公園</option><option>国頭村</option><option>名護市</option><option>恩納村</option><option>本部町</option><option>今帰仁村</option><option>那覇市</option><option>北谷町</option><option>不明</option></select></div>
       <div class="form-group"><label>宿泊先ホテル名</label><input type="text" id="f-hotel"></div>
       <div class="form-group"><label>申込方法 *</label><select id="f-booking"><option>なっぷオプション</option><option>ベルトラ</option><option>オクマ</option><option>直接申し込み</option><option>取材</option><option>イベント</option></select></div>
-      <div class="form-group"><label>メインガイド *</label><select id="f-main"><option>MOJI</option><option>あずみ</option><option>雄二</option><option>KOKI</option><option>MOMO</option><option>みほこさん</option></select></div>
+      <div class="form-group"><label>メインガイド *</label><select id="f-main" onchange="autoCalcForest()"><option>MOJI</option><option>あずみ</option><option>雄二</option><option>KOKI</option><option>MOMO</option><option>みほこさん</option></select></div>
       <div class="form-group"><label>サブガイド</label><select id="f-sub"><option value="">—</option><option>MOJI</option><option>あずみ</option><option>雄二</option><option>KOKI</option><option>MOMO</option><option>みほこさん</option></select></div>
       <div class="form-group"><label>売上実績（円）</label><input type="number" id="f-sales" value="0" min="0"></div>
-      <div class="form-group"><label>ベース金額（円）</label><input type="number" id="f-base" value="8000" min="0"></div>
-      <div class="form-group"><label>追加金額（円）</label><input type="number" id="f-extra" value="0" min="0"></div>
+      <div class="form-group"><label>ベース金額（円）<span id="f-base-hint" style="font-size:9px;color:var(--success);margin-left:4px;font-weight:400"></span></label><input type="number" id="f-base" value="8000" min="0"></div>
+      <div class="form-group"><label>追加金額（円）<span id="f-extra-hint" style="font-size:9px;color:var(--success);margin-left:4px;font-weight:400"></span></label><input type="number" id="f-extra" value="0" min="0"></div>
       <div class="form-group full"><label>備考</label><textarea id="f-note" rows="2"></textarea></div>
     </div>
     <input type="hidden" id="f-edit-id" value="">
@@ -953,6 +953,7 @@ function openModal(type){
   document.getElementById(p+'-base').value=type==='forest'?8000:9000;
   document.getElementById(p+'-extra').value=0;
   document.getElementById('modal-'+type).classList.add('open');
+  if(type==='forest') autoCalcForest();
 }
 function closeModal(type){
   document.getElementById('modal-'+type).classList.remove('open');
@@ -1190,6 +1191,58 @@ function printConfirm() {
   printArea.innerHTML = pages;
   closeModal('confirm');
   setTimeout(() => { window.print(); }, 300);
+}
+
+
+// ═══════════════════════════════════════════
+// 報酬自動計算（森のツアー）
+// ═══════════════════════════════════════════
+const BASE_PRICE = { '夜の森の探検ツアー': 8000, 'モニタリング': 9000 };
+const EXTRA_PER_PERSON = 1000;
+const BASE_INCLUDED_PAX = 2; // ベースに含まれる人数
+
+function autoCalcForest() {
+  const date      = document.getElementById('f-date').value;
+  const tourType  = document.getElementById('f-type').value;
+  const mainGuide = document.getElementById('f-main').value;
+  const adult     = parseInt(document.getElementById('f-adult').value) || 0;
+  const child     = parseInt(document.getElementById('f-child').value) || 0;
+  const billedPax = adult + child; // 幼児・乳幼児は対象外
+
+  const basePrice = BASE_PRICE[tourType] || 8000;
+
+  // 同日・同ガイド・同ツアーの既存記録を検索（編集中のレコードは除外）
+  const editId = document.getElementById('f-edit-id').value;
+  const sameGroup = DB.forest.filter(r =>
+    r.date === date &&
+    r.mainGuide === mainGuide &&
+    r.type === tourType &&
+    r.id != editId
+  );
+
+  let base, extra;
+
+  if (sameGroup.length === 0) {
+    // 1組目：ベースあり
+    base  = basePrice;
+    extra = Math.max(0, billedPax - BASE_INCLUDED_PAX) * EXTRA_PER_PERSON;
+  } else {
+    // 2組目以降：ベース0、全員追加扱い
+    base  = 0;
+    extra = billedPax * EXTRA_PER_PERSON;
+  }
+
+  document.getElementById('f-base').value  = base;
+  document.getElementById('f-extra').value = extra;
+
+  // ヒント表示
+  const isFirst = sameGroup.length === 0;
+  const hint1 = isFirst ? '✓ 自動計算（1組目）' : '✓ 自動計算（2組目以降）';
+  const hint2 = billedPax <= BASE_INCLUDED_PAX && isFirst
+    ? `✓ ${billedPax}名（追加なし）`
+    : `✓ ${billedPax}名 × ¥${EXTRA_PER_PERSON.toLocaleString()}`;
+  document.getElementById('f-base-hint').textContent  = hint1;
+  document.getElementById('f-extra-hint').textContent = isFirst ? hint2 : `✓ ${billedPax}名 × ¥${EXTRA_PER_PERSON.toLocaleString()}（全員追加）`;
 }
 
 // 起動
