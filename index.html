@@ -335,6 +335,31 @@ tr:hover td{background:#fafaf5}
 <div id="page-rules" class="page">
   <div class="page-header"><div class="page-title">⚙️ 報酬計算ルール設定</div></div>
   <div class="card">
+    <div class="card-header"><h2>👤 ガイド管理</h2></div>
+    <div class="card-body">
+      <p style="font-size:12px;color:#888;margin-bottom:14px">各ツアーに表示するガイド名を管理します。追加・削除した内容はフォームのセレクトに即時反映されます。</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+        <div>
+          <div style="font-size:12px;font-weight:700;color:var(--forest-mid);margin-bottom:8px">🌲 森のツアー ガイド</div>
+          <div id="guide-list-forest" style="margin-bottom:10px"></div>
+          <div style="display:flex;gap:6px">
+            <input type="text" id="new-guide-forest" placeholder="ガイド名を入力" style="flex:1;font-size:12px">
+            <button class="btn btn-primary btn-sm" onclick="addGuide('forest')">＋ 追加</button>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:12px;font-weight:700;color:var(--sky-mid);margin-bottom:8px">✨ 星空ツアー ガイド</div>
+          <div id="guide-list-star" style="margin-bottom:10px"></div>
+          <div style="display:flex;gap:6px">
+            <input type="text" id="new-guide-star" placeholder="ガイド名を入力" style="flex:1;font-size:12px">
+            <button class="btn btn-sky btn-sm" onclick="addGuide('star')">＋ 追加</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
     <div class="card-header"><h2>🌲 森のツアー 分配ルール</h2><button class="btn btn-primary btn-sm" onclick="addRule('forest')">＋ 追加</button></div>
     <div class="card-body">
       <p style="font-size:12px;color:#888;margin-bottom:12px">サブガイドがいる場合に「支払計」をメイン/サブで分配します。</p>
@@ -461,7 +486,7 @@ tr:hover td{background:#fafaf5}
     <h3 id="modal-star-title">✨ 星空ツアー記録を追加</h3>
     <div class="form-grid">
       <div class="form-group"><label>ツアー催行日 *</label><input type="date" id="s-date"></div>
-      <div class="form-group"><label>ツアーの種類 *</label><select id="s-type" onchange="autoCalcSales('star')"><option>てぃんがーら</option><option>星語り（美ら星）</option><option>フォトツアー</option></select></div>
+      <div class="form-group"><label>ツアーの種類 *</label><select id="s-type" onchange="autoCalcSales('star');autoCalcStarGuide()"><option>てぃんがーら</option><option>星語り（美ら星）</option><option>フォトツアー</option></select></div>
       <div class="form-group"><label>催行ステータス *</label>
         <select id="s-conducted" style="font-weight:700">
           <option value="true">✅ 催行</option>
@@ -512,8 +537,8 @@ tr:hover td{background:#fafaf5}
         <select id="s-stay"><option value="">—</option><option>国頭村森林公園</option><option>国頭村</option><option>名護市</option><option>恩納村</option><option>本部町</option><option>今帰仁村</option><option>那覇市</option><option>北谷町</option><option>不明</option></select></div>
       <div class="form-group"><label>宿泊先ホテル名</label><input type="text" id="s-hotel"></div>
       <div class="form-group"><label>申込方法 *</label><select id="s-booking" onchange="autoCalcSales('star')"><option>なっぷオプション</option><option>ベルトラ</option><option>オクマ</option><option>直接申し込み</option><option>取材</option><option>イベント</option></select></div>
-      <div class="form-group"><label>メインガイド *</label><select id="s-main"><option>MOJI</option><option>KAZUNA</option><option>EMA</option><option>MOMO</option><option>KOKI</option></select></div>
-      <div class="form-group"><label>サブガイド</label><select id="s-sub"><option value="">—</option><option>MOJI</option><option>KAZUNA</option><option>EMA</option><option>MOMO</option><option>KOKI</option></select></div>
+      <div class="form-group"><label>メインガイド *</label><select id="s-main" onchange="autoCalcStarGuide()"><option>MOJI</option><option>KAZUNA</option><option>EMA</option><option>MOMO</option><option>KOKI</option><option>たくみ</option></select></div>
+      <div class="form-group"><label>サブガイド</label><select id="s-sub"><option value="">—</option><option>MOJI</option><option>KAZUNA</option><option>EMA</option><option>MOMO</option><option>KOKI</option><option>たくみ</option></select></div>
       <div class="form-group"><label>売上実績（円）</label><input type="number" id="s-sales" value="0" min="0"></div>
       <div class="form-group"><label>ベース金額（円）</label><input type="number" id="s-base" value="9000" min="0"></div>
       <div class="form-group"><label>追加金額（円）</label><input type="number" id="s-extra" value="0" min="0"></div>
@@ -957,7 +982,7 @@ function showTab(name,el){
   document.getElementById('page-'+name).classList.add('active');
   (el||event.target).classList.add('active');
   if(name==='reward'){renderReward();populateAdminFilters();}
-  if(name==='rules')renderPriceSettings();
+  if(name==='rules'){renderPriceSettings();renderGuideList('forest');renderGuideList('star');}
 }
 function showSub(page,sub,el){
   document.querySelectorAll(`[id^="sub-${page}-"]`).forEach(e=>e.classList.remove('active'));
@@ -973,6 +998,7 @@ function openModal(type){
   document.getElementById(p+'-edit-id').value='';
   const titles={forest:'🌲 森のツアー記録を追加',star:'✨ 星空ツアー記録を追加'};
   document.getElementById('modal-'+type+'-title').textContent=titles[type];
+  updateGuideSelects(type);
   // 日付は保持、それ以外をリセット
   const today=new Date().toISOString().split('T')[0];
   if(!document.getElementById(p+'-date').value) document.getElementById(p+'-date').value=today;
@@ -1472,8 +1498,95 @@ function renderAdminRecords() {
   }).join('');
 }
 
+
+// ═══════════════════════════════════════════
+// ガイド管理
+// ═══════════════════════════════════════════
+const GUIDE_KEY = 'yntGuides_v1';
+let GUIDES = {
+  forest: ['MOJI','あずみ','雄二','KOKI','MOMO','みほこさん'],
+  star:   ['MOJI','KAZUNA','EMA','MOMO','KOKI','たくみ']
+};
+
+function loadGuides() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(GUIDE_KEY));
+    if (saved) GUIDES = saved;
+  } catch {}
+}
+function saveGuides() {
+  localStorage.setItem(GUIDE_KEY, JSON.stringify(GUIDES));
+}
+
+function renderGuideList(type) {
+  const el = document.getElementById('guide-list-' + type);
+  if (!el) return;
+  el.innerHTML = GUIDES[type].map((g,i) => `
+    <div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid #f0f0f0">
+      <span style="flex:1;font-size:12px">${g}</span>
+      <button class="btn btn-danger btn-sm" onclick="removeGuide('${type}',${i})" style="padding:3px 8px;font-size:10px">削除</button>
+    </div>`).join('');
+}
+
+function addGuide(type) {
+  const input = document.getElementById('new-guide-' + type);
+  const name = input.value.trim();
+  if (!name) { showToast('ガイド名を入力してください', 'error'); return; }
+  if (GUIDES[type].includes(name)) { showToast('すでに登録されています', 'error'); return; }
+  GUIDES[type].push(name);
+  saveGuides();
+  renderGuideList(type);
+  updateGuideSelects(type);
+  input.value = '';
+  showToast(name + ' を追加しました', 'success');
+}
+
+function removeGuide(type, idx) {
+  const name = GUIDES[type][idx];
+  if (!confirm(`「${name}」を削除しますか？`)) return;
+  GUIDES[type].splice(idx, 1);
+  saveGuides();
+  renderGuideList(type);
+  updateGuideSelects(type);
+  showToast(name + ' を削除しました', 'info');
+}
+
+function updateGuideSelects(type) {
+  const p = type === 'forest' ? 'f' : 's';
+  const guides = GUIDES[type];
+  const mainSel = document.getElementById(p + '-main');
+  const subSel  = document.getElementById(p + '-sub');
+  if (!mainSel || !subSel) return;
+  const curMain = mainSel.value;
+  const curSub  = subSel.value;
+  const opts = guides.map(g => `<option>${g}</option>`).join('');
+  const subOpts = '<option value="">—</option>' + opts;
+  mainSel.innerHTML = opts;
+  subSel.innerHTML  = subOpts;
+  if (guides.includes(curMain)) mainSel.value = curMain;
+  if (guides.includes(curSub))  subSel.value  = curSub;
+  // 確認書のガイドセレクトも更新
+  const confirmSel = document.getElementById('confirm-guide');
+  if (confirmSel) {
+    const allGuides = [...new Set([...GUIDES.forest,...GUIDES.star])].sort();
+    const curConfirm = confirmSel.value;
+    confirmSel.innerHTML = '<option value="">全ガイド（全員分）</option>';
+    allGuides.forEach(g => { confirmSel.innerHTML += `<option value="${g}"${g===curConfirm?' selected':''}>${g}</option>`; });
+  }
+}
+
+// フォトツアー選択時はガイド費を0に
+function autoCalcStarGuide() {
+  const tourType = document.getElementById('s-type').value;
+  if (tourType === 'フォトツアー') {
+    document.getElementById('s-base').value  = 0;
+    document.getElementById('s-extra').value = 0;
+  }
+}
+
 // 起動
 loadPrices();
+loadGuides();
 init();
 </script>
 </body>
