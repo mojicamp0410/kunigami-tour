@@ -1020,6 +1020,8 @@ function openModal(type){
   document.getElementById(p+'-sales').value=0;
   document.getElementById(p+'-base').value=type==='forest'?8000:9000;
   document.getElementById(p+'-extra').value=0;
+  // フォトツアーモードのリセット
+  if(type==='star') togglePhotoMode(false);
   document.getElementById('modal-'+type).classList.add('open');
   if(type==='forest') autoCalcForest();
   autoCalcSales(type);
@@ -1357,8 +1359,11 @@ function savePrices() {
     TOUR_TYPES.forEach(t => {
       const k = safeKey(b,t);
       if (PER_GROUP_TOURS.includes(t)) {
-        const el = document.getElementById('price_'+k+'_group');
-        if (el) { if(!PRICES[k]) PRICES[k]={mode:'group',group:0}; PRICES[k].group = parseInt(el.value)||0; }
+        const elG = document.getElementById('price_'+k+'_group');
+        const elF = document.getElementById('price_'+k+'_guide_fee');
+        if (!PRICES[k]) PRICES[k]={mode:'group',group:0,guide_fee:16500};
+        if (elG) PRICES[k].group     = parseInt(elG.value)||0;
+        if (elF) PRICES[k].guide_fee = parseInt(elF.value)||0;
       } else {
         ['adult','child','infant'].forEach(ag => {
           const el = document.getElementById('price_'+k+'_'+ag);
@@ -1393,7 +1398,20 @@ function renderPriceSettings() {
         <div style="font-weight:700;margin-bottom:6px;color:#555">${t} <span style="font-size:9px;color:#aaa">${label}</span></div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">`;
       if (isGroup) {
-        html += `<label>1組</label><input type="number" id="price_${k}_group" value="${p.group||0}" min="0" style="width:80px;font-size:11px;padding:4px 6px"><span style="color:#aaa;font-size:10px">円/組</span>`;
+        const gfee = PRICES[k]?.guide_fee ?? 16500;
+        html += `
+          <div style="display:flex;flex-direction:column;gap:6px;width:100%">
+            <div style="display:flex;gap:8px;align-items:center">
+              <label>売上（1組）</label>
+              <input type="number" id="price_${k}_group" value="${p.group||0}" min="0" style="width:90px;font-size:11px;padding:4px 6px">
+              <span style="color:#aaa;font-size:10px">円/組</span>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <label>ガイド費（固定）</label>
+              <input type="number" id="price_${k}_guide_fee" value="${gfee}" min="0" style="width:90px;font-size:11px;padding:4px 6px">
+              <span style="color:#aaa;font-size:10px">円/組</span>
+            </div>
+          </div>`;
       } else {
         html += `<label>大人</label><input type="number" id="price_${k}_adult" value="${p.adult||0}" min="0" style="width:70px;font-size:11px;padding:4px 6px">
           <label>子ども</label><input type="number" id="price_${k}_child" value="${p.child||0}" min="0" style="width:70px;font-size:11px;padding:4px 6px">
@@ -1420,6 +1438,8 @@ function autoCalcSales(type) {
   const p = type === 'forest' ? 'f' : 's';
   const booking  = document.getElementById(p+'-booking').value;
   const tourType = document.getElementById(p+'-type').value;
+  // フォトツアーは固定なのでスキップ（autoCalcStarGuideが担当）
+  if (tourType === 'フォトツアー') return;
   const adult    = parseInt(document.getElementById(p+'-adult').value)  || 0;
   const child    = parseInt(document.getElementById(p+'-child').value)  || 0;
   const infant   = parseInt(document.getElementById(p+'-infant').value) || 0;
@@ -1575,13 +1595,49 @@ function updateGuideSelects(type) {
   }
 }
 
-// フォトツアー選択時はガイド費を0に
+// フォトツアー選択時は固定金額をセット・人数欄を1組表示に切り替え
 function autoCalcStarGuide() {
   const tourType = document.getElementById('s-type').value;
-  if (tourType === 'フォトツアー') {
-    document.getElementById('s-base').value  = 0;
+  const isPhoto  = tourType === 'フォトツアー';
+  // 人数ラベルの切り替え
+  const adultLbl = document.querySelector('label[for="s-adult"]') || [...document.querySelectorAll('label')].find(l=>l.htmlFor==='s-adult'||l.textContent.includes('大人（12歳以上）'));
+  togglePhotoMode(isPhoto);
+  if (isPhoto) {
+    // ガイド費を固定値でセット
+    const booking = document.getElementById('s-booking').value;
+    const k = safeKey(booking, 'フォトツアー');
+    const p = PRICES[k] || {group:22000, guide_fee:16500};
+    document.getElementById('s-sales').value = p.group || 22000;
+    document.getElementById('s-base').value  = p.guide_fee || 16500;
     document.getElementById('s-extra').value = 0;
   }
+}
+
+function togglePhotoMode(isPhoto) {
+  // 人数関連ラベルを「1組」に切り替え
+  const fields = ['s-adult','s-child','s-infant','s-baby','s-male','s-female'];
+  const labels = {
+    's-adult': isPhoto ? '組数（1組固定）' : '大人（12歳以上）',
+    's-child': isPhoto ? '—'              : '子ども（6〜12歳）',
+    's-infant':'—',
+    's-baby':  '—',
+    's-male':  isPhoto ? '—'              : '男性人数',
+    's-female':isPhoto ? '—'              : '女性人数',
+  };
+  fields.forEach(id => {
+    const el  = document.getElementById(id);
+    const grp = el?.closest('.form-group');
+    if (!grp) return;
+    const lbl = grp.querySelector('label');
+    if (lbl) lbl.textContent = labels[id] || '—';
+    if (isPhoto && id !== 's-adult') {
+      el.value = 0;
+      grp.style.display = 'none';
+    } else {
+      grp.style.display = '';
+    }
+  });
+  if (isPhoto) document.getElementById('s-adult').value = 1;
 }
 
 // 起動
