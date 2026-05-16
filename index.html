@@ -609,13 +609,22 @@ tr:hover td{background:#fafaf5}
     display: block !important;
     font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
   }
-  @page { size: A4; margin: 15mm 18mm; }
+  @page {
+    size: A4;
+    margin: 12mm 15mm;
+    /* ブラウザ自動ヘッダー・フッター（タイトル・URL・日時）を非表示 */
+    margin-top: 12mm;
+  }
+  /* Chrome/Edge: 印刷ヘッダー・フッターを消す */
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
+/* 印刷時のブラウザヘッダー非表示（標準CSS） */
+@page { margin: 12mm 15mm; }
 
 .confirm-page {
   width: 210mm;
   min-height: 297mm;
-  padding: 10mm 20mm 18mm;
+  padding: 8mm 18mm 15mm;
   font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', 'Zen Kaku Gothic New', sans-serif;
   font-size: 10pt;
   color: #111;
@@ -635,16 +644,16 @@ tr:hover td{background:#fafaf5}
 
 .confirm-greeting { font-size: 9.5pt; line-height: 1.9; margin-bottom: 5mm; }
 
-.confirm-table { width: 100%; border-collapse: collapse; margin-bottom: 5mm; font-size: 8.5pt; }
-.confirm-table th { background: #1a3a2a; color: #fff; padding: 5px 8px; text-align: center; font-weight: 700; white-space: nowrap; }
-.confirm-table td { padding: 5px 8px; border-bottom: 1px solid #ddd; vertical-align: middle; }
+.confirm-table { width: 100%; border-collapse: collapse; margin-bottom: 4mm; font-size: 8.5pt; }
+.confirm-table th { background: #1a3a2a; color: #fff; padding: 4px 7px; text-align: center; font-weight: 700; white-space: nowrap; }
+.confirm-table td { padding: 4px 7px; border-bottom: 1px solid #ddd; vertical-align: middle; }
 .confirm-table tr:nth-child(even) td { background: #f8faf8; }
 .confirm-table .num { text-align: right; font-family: 'Courier New', monospace; }
 .confirm-table .center { text-align: center; }
 .confirm-table .conducted-yes { color: #1e7e34; font-weight: 700; }
 .confirm-table .conducted-no { color: #c0392b; }
 
-.confirm-total-box { border: 2px solid #1a3a2a; border-radius: 6px; padding: 6mm 8mm; margin-bottom: 6mm; display: flex; align-items: center; justify-content: space-between; }
+.confirm-total-box { border: 2px solid #1a3a2a; border-radius: 6px; padding: 4mm 8mm; margin-bottom: 4mm; display: flex; align-items: center; justify-content: space-between; }
 .confirm-total-label { font-size: 12pt; font-weight: 700; }
 .confirm-total-amount { font-size: 20pt; font-weight: 900; color: #1a3a2a; font-family: 'Courier New', monospace; }
 .confirm-total-amount small { font-size: 11pt; }
@@ -654,7 +663,7 @@ tr:hover td{background:#fafaf5}
 .confirm-breakdown td { padding: 2px 6px; }
 .confirm-breakdown td:last-child { text-align: right; font-family: 'Courier New', monospace; }
 
-.confirm-note { font-size: 8.5pt; color: #555; border-top: 1px solid #ddd; padding-top: 4mm; margin-bottom: 8mm; line-height: 1.8; }
+.confirm-note { font-size: 8pt; color: #555; border-top: 1px solid #ddd; padding-top: 3mm; margin-bottom: 5mm; line-height: 1.7; }
 
 .confirm-sign { margin-top: 8mm; }
 .confirm-sign-title { font-size: 9pt; font-weight: 700; margin-bottom: 3mm; }
@@ -1181,20 +1190,22 @@ function buildConfirmPage(guideName, month, issueDate, payDate, displayName) {
 
   return `
   <div class="confirm-page">
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:3mm">
-      <div style="font-size:9pt;color:#444;font-weight:700">キャンプ沖縄事業協同組合</div>
-      <div style="font-size:8.5pt;color:#555;text-align:right;line-height:1.8">
-        発行日：${issueDateStr}<br>
-        振込予定日：<strong style="color:#111">${payDateStr}</strong>
-      </div>
+    <!-- タイトルブロック -->
+    <div style="text-align:center;margin-bottom:5mm;padding-bottom:4mm;border-bottom:2px solid #1a3a2a">
+      <div style="font-size:18pt;font-weight:900;letter-spacing:.1em;margin-bottom:1mm">ガイド業務報酬 確認書</div>
+      <div style="font-size:9pt;color:#555">${y}年${mo}月分</div>
     </div>
-    <div class="confirm-title">ガイド業務報酬 確認書</div>
-    <div class="confirm-subtitle">${y}年${mo}月分</div>
 
-    <div class="confirm-meta">
-      <div class="confirm-meta-left">
-        <strong style="font-size:13pt">${printName}　様</strong><br>
-        <span style="font-size:8.5pt;color:#555">下記の通り、ガイド業務報酬をご確認ください。</span>
+    <!-- 発行情報 + 宛名 -->
+    <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:6mm">
+      <div>
+        <div style="font-size:15pt;font-weight:900;margin-bottom:1mm">${printName}　様</div>
+        <div style="font-size:8.5pt;color:#555">下記の通り、ガイド業務報酬をご確認ください。</div>
+      </div>
+      <div style="text-align:right;font-size:8.5pt;color:#555;line-height:2">
+        <div>発行元：<strong style="color:#111">キャンプ沖縄事業協同組合</strong></div>
+        <div>発行日：${issueDateStr}</div>
+        <div>振込予定日：<strong style="color:#111">${payDateStr}</strong></div>
       </div>
     </div>
 
