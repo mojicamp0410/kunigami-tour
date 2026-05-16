@@ -476,7 +476,8 @@ tr:hover td{background:#fafaf5}
       <div class="form-group"><label>売上実績（円）</label><input type="number" id="f-sales" value="0" min="0"></div>
       <div class="form-group"><label>ベース金額（円）<span id="f-base-hint" style="font-size:9px;color:var(--success);margin-left:4px;font-weight:400"></span></label><input type="number" id="f-base" value="8000" min="0"></div>
       <div class="form-group"><label>追加金額（円）<span id="f-extra-hint" style="font-size:9px;color:var(--success);margin-left:4px;font-weight:400"></span></label><input type="number" id="f-extra" value="0" min="0"></div>
-      <div class="form-group full"><label>備考</label><textarea id="f-note" rows="2"></textarea></div>
+      <div class="form-group full"><label>備考（確認書に載ります）</label><textarea id="f-note" rows="2"></textarea></div>
+      <div class="form-group full"><label>管理メモ（管理者のみ・確認書には載りません）</label><textarea id="f-admin-note" rows="2" style="border-color:#e8865a;background:#fffaf7"></textarea></div>
     </div>
     <input type="hidden" id="f-edit-id" value="">
     <div class="modal-footer">
@@ -548,7 +549,8 @@ tr:hover td{background:#fafaf5}
       <div class="form-group"><label>売上実績（円）</label><input type="number" id="s-sales" value="0" min="0"></div>
       <div class="form-group"><label>ベース金額（円）</label><input type="number" id="s-base" value="9000" min="0"></div>
       <div class="form-group"><label>追加金額（円）</label><input type="number" id="s-extra" value="0" min="0"></div>
-      <div class="form-group full"><label>備考</label><textarea id="s-note" rows="2"></textarea></div>
+      <div class="form-group full"><label>備考（確認書に載ります）</label><textarea id="s-note" rows="2"></textarea></div>
+      <div class="form-group full"><label>管理メモ（管理者のみ・確認書には載りません）</label><textarea id="s-admin-note" rows="2" style="border-color:#e8865a;background:#fffaf7"></textarea></div>
     </div>
     <input type="hidden" id="s-edit-id" value="">
     <div class="modal-footer">
@@ -704,7 +706,7 @@ function dbToLocal(r) {
     male:r.male||0, female:r.female||0, group:r.grp||'',
     pref:r.pref||'', city:r.city||'', overseas:r.overseas||'', stay:r.stay||'', hotel:r.hotel||'',
     booking:r.booking||'', mainGuide:r.main_guide||'', subGuide:r.sub_guide||'',
-    sales:r.sales||0, base:r.base_amt||0, extra:r.extra_amt||0, note:r.note||'', conducted:r.conducted!==false };
+    sales:r.sales||0, base:r.base_amt||0, extra:r.extra_amt||0, note:r.note||'', adminNote:r.admin_note||'', conducted:r.conducted!==false };
 }
 function localToDb(rec, tourType) {
   return { tour_type:tourType, date:rec.date, type:rec.type, name:rec.name,
@@ -712,7 +714,7 @@ function localToDb(rec, tourType) {
     male:rec.male, female:rec.female, grp:rec.group,
     pref:rec.pref, city:rec.city, overseas:rec.overseas, stay:rec.stay, hotel:rec.hotel,
     booking:rec.booking, main_guide:rec.mainGuide, sub_guide:rec.subGuide,
-    sales:rec.sales, base_amt:rec.base, extra_amt:rec.extra, note:rec.note, conducted:rec.conducted };
+    sales:rec.sales, base_amt:rec.base, extra_amt:rec.extra, note:rec.note, admin_note:rec.adminNote, conducted:rec.conducted };
 }
 
 async function loadAll() {
@@ -822,23 +824,29 @@ function populateFilters(type){
 function renderSummary(type){
   const month=document.getElementById('filter-'+type+'-month')?.value;
   const recs=month?DB[type].filter(r=>r.date?.slice(0,7)===month):DB[type];
-  const tS=recs.reduce((s,r)=>s+(r.sales||0),0),tP=recs.reduce((s,r)=>s+pay(r),0);
+  // 催行・不催行を分ける（星空のみ）
+  const conductedRecs   = type==='star' ? recs.filter(r=>r.conducted!==false) : recs;
+  const unconductedRecs = type==='star' ? recs.filter(r=>r.conducted===false)  : [];
+  const tS  = conductedRecs.reduce((s,r)=>s+(r.sales||0),0);
+  const tP  = conductedRecs.reduce((s,r)=>s+pay(r),0);
+  const loss = unconductedRecs.reduce((s,r)=>s+(r.sales||0),0); // 不催行の損失額
   const margin=tS>0?((tS-tP)/tS*100).toFixed(1):'—',totalPax=recs.reduce((s,r)=>s+pax(r),0);
   const conductedCount=recs.filter(r=>r.conducted!==false).length;
   const conductedRate=recs.length>0?(conductedCount/recs.length*100).toFixed(1):'—';
-  const margins=recs.filter(r=>r.sales>0&&r.conducted!==false).map(r=>((r.sales-pay(r))/r.sales*100));
+  const margins=conductedRecs.filter(r=>r.sales>0).map(r=>((r.sales-pay(r))/r.sales*100));
   const bestMargin=margins.length>0?Math.max(...margins).toFixed(1):'—';
   const col=type==='forest'?'forest':'sky';
   document.getElementById('summary-'+type).innerHTML=`
     <div class="pill ${col}"><div class="pill-label">催行件数</div><div class="pill-value">${recs.length}</div><div class="pill-sub">件</div></div>
     <div class="pill ${col}"><div class="pill-label">総来場者</div><div class="pill-value">${fmt(totalPax)}</div><div class="pill-sub">名</div></div>
-    <div class="pill gold"><div class="pill-label">売上合計</div><div class="pill-value">${fmt(tS)}</div><div class="pill-sub">円</div></div>
+    <div class="pill gold"><div class="pill-label">${type==='star'?'売上合計（催行分）':'売上合計'}</div><div class="pill-value">${fmt(tS)}</div><div class="pill-sub">円</div></div>
     <div class="pill light"><div class="pill-label">ガイド支払計</div><div class="pill-value">${fmt(tP)}</div><div class="pill-sub">円</div></div>
     ${type==='forest'?`<div class="pill light"><div class="pill-label">粗利率（概算）</div><div class="pill-value">${margin}</div><div class="pill-sub">%</div></div>`:''}
     ${type==='star'?`
-      <div class="pill light"><div class="pill-label">粗利率（概算）</div><div class="pill-value">${margin}</div><div class="pill-sub">%</div></div>
+      <div class="pill light"><div class="pill-label">粗利率（催行分）</div><div class="pill-value">${margin}</div><div class="pill-sub">%</div></div>
       <div class="pill light"><div class="pill-label">催行率</div><div class="pill-value">${conductedRate}</div><div class="pill-sub">% (${conductedCount}/${recs.length}件)</div></div>
       <div class="pill gold"><div class="pill-label">最高粗利率</div><div class="pill-value">${bestMargin}</div><div class="pill-sub">%</div></div>
+      ${loss>0?`<div class="pill" style="background:#fdf0ef;color:var(--danger)"><div class="pill-label">不催行 損失額</div><div class="pill-value">${loss.toLocaleString()}</div><div class="pill-sub">円</div></div>`:''}
     `:''}`;
 }
 
@@ -874,7 +882,7 @@ function renderTable(type){
       <td class="mono">${fmt(r.extra)}</td>
       <td class="mono"><strong>${fmt(p)}</strong></td>
       <td class="mono">${margin}</td>
-      <td style="color:#888;font-size:11px;max-width:100px;overflow:hidden;text-overflow:ellipsis">${r.note||''}</td>
+      <td style="font-size:11px;max-width:120px">${r.note?`<span style='color:#555'>${r.note}</span>`:''} ${r.adminNote?`<br><span style='color:#e8865a;font-size:10px'>🔒 ${r.adminNote}</span>`:''}</td>
       <td style="display:flex;gap:4px"><button class="btn btn-sm" style="background:#e8f4fd;color:#1a3355" onclick="editRecord('${type}','${r.id}')">✏️ 編集</button><button class="btn btn-danger btn-sm" onclick="deleteRecord('${type}','${r.id}')">削除</button></td>
     </tr>`;
   }).join('');
@@ -1017,6 +1025,7 @@ function openModal(type){
   document.getElementById(p+'-hotel').value='';
   document.getElementById(p+'-overseas').value='';
   document.getElementById(p+'-note').value='';
+  document.getElementById(p+'-admin-note').value='';
   document.getElementById(p+'-adult').value=1;
   document.getElementById(p+'-child').value=0;
   document.getElementById(p+'-infant').value=0;
@@ -1070,6 +1079,7 @@ function editRecord(type,id){
   document.getElementById(p+'-base').value=r.base;
   document.getElementById(p+'-extra').value=r.extra;
   document.getElementById(p+'-note').value=r.note;
+  document.getElementById(p+'-admin-note').value=r.adminNote||'';
   document.getElementById('modal-'+type).classList.add('open');
 }
 document.querySelectorAll('.modal-overlay').forEach(el=>{el.addEventListener('click',e=>{if(e.target===el)el.classList.remove('open');});});
@@ -1513,7 +1523,7 @@ function renderAdminRecords() {
       <td class="mono">${fmt(r.base)}</td>
       <td class="mono">${fmt(r.extra)}</td>
       <td class="mono"><strong>${fmt(p)}</strong></td>
-      <td style="color:#888;font-size:11px;max-width:80px;overflow:hidden;text-overflow:ellipsis">${r.note||''}</td>
+      <td style="font-size:11px;max-width:120px">${r.note?`<span style='color:#555'>${r.note}</span>`:''} ${r.adminNote?`<br><span style='color:#e8865a;font-size:10px'>🔒 ${r.adminNote}</span>`:''}</td>
       <td style="display:flex;gap:4px">
         <button class="btn btn-sm" style="background:#e8f4fd;color:#1a3355" onclick="editRecord('${r.tType}','${r.id}')">✏️</button>
         <button class="btn btn-danger btn-sm" onclick="deleteRecord('${r.tType}','${r.id}')">削除</button>
