@@ -785,8 +785,8 @@ function exportRewardCSV() {
   const allGuides=[...new Set([...DB.forest.map(r=>r.mainGuide),...DB.forest.map(r=>r.subGuide),...DB.star.map(r=>r.mainGuide),...DB.star.map(r=>r.subGuide)].filter(Boolean))].sort();
   const stats={};
   allGuides.forEach(g=>{stats[g]={fM:0,fS:0,fC:0,sM:0,sS:0,sC:0};});
-  fR.forEach(r=>{const p=pay(r);if(r.mainGuide&&stats[r.mainGuide]){stats[r.mainGuide].fM+=r.subGuide?Math.round(p*SPLIT):p;stats[r.mainGuide].fC++;}if(r.subGuide&&stats[r.subGuide]){stats[r.subGuide].fS+=Math.round(p*(1-SPLIT));stats[r.subGuide].fC++;}});
-  sR.filter(r=>r.conducted!==false).forEach(r=>{const p=pay(r);if(r.mainGuide&&stats[r.mainGuide]){stats[r.mainGuide].sM+=r.subGuide?Math.round(p*SPLIT):p;stats[r.mainGuide].sC++;}if(r.subGuide&&stats[r.subGuide]){stats[r.subGuide].sS+=Math.round(p*(1-SPLIT));stats[r.subGuide].sC++;}});
+  fR.forEach(r=>{const p=pay(r);if(r.mainGuide&&stats[r.mainGuide]){stats[r.mainGuide].fM+=p;stats[r.mainGuide].fC++;}if(r.subGuide&&stats[r.subGuide]){stats[r.subGuide].fS+=p;stats[r.subGuide].fC++;}});
+  sR.filter(r=>r.conducted!==false).forEach(r=>{const p=pay(r);if(r.mainGuide&&stats[r.mainGuide]){stats[r.mainGuide].sM+=p;stats[r.mainGuide].sC++;}if(r.subGuide&&stats[r.subGuide]){stats[r.subGuide].sS+=p;stats[r.subGuide].sC++;}});
 
   const h1=['ガイド','森：件数','森：報酬','星：件数','星：報酬','合計件数','合計報酬'];
   const r1=allGuides.map(g=>{const s=stats[g],fA=s.fM+s.fS,sA=s.sM+s.sS;return[g,s.fC,fA,s.sC,sA,s.fC+s.sC,fA+sA];});
@@ -796,7 +796,7 @@ function exportRewardCSV() {
 
   const all=[...DB.forest.map(r=>({...r,tT:'森のツアー'})),...DB.star.map(r=>({...r,tT:'星空ツアー'}))].filter(r=>!month||r.date?.slice(0,7)===month).sort((a,b)=>a.date>b.date?1:-1);
   const h2=['日付','ツアー種別','お客様名','合計人数','メインガイド','サブガイド','支払合計','メイン分','サブ分'];
-  const r2=all.map(r=>{const p=pay(r),mA=r.subGuide?Math.round(p*SPLIT):p,sA=r.subGuide?Math.round(p*(1-SPLIT)):0;return[r.date,r.tT,r.name,pax(r),r.mainGuide,r.subGuide||'',p,mA,r.subGuide?sA:''];});
+  const r2=all.map(r=>{const p=pay(r),mA=p,sA=r.subGuide?p:0;return[r.date,r.tT,r.name,pax(r),r.mainGuide,r.subGuide||'',p,mA,r.subGuide?sA:''];});
 
   const mLabel=month?month.replace('-','年')+'月':'全期間';
   const csv=[['■ ガイド報酬サマリー'],h1,...r1,[],['■ 日次明細'],h2,...r2].map(row=>row.map(csvEscape).join(',')).join('\r\n');
@@ -897,8 +897,8 @@ function renderReward(){
   const sR=month?DB.star.filter(r=>r.date?.slice(0,7)===month):DB.star;
   const allGuides=[...new Set([...DB.forest.map(r=>r.mainGuide),...DB.forest.map(r=>r.subGuide),...DB.star.map(r=>r.mainGuide),...DB.star.map(r=>r.subGuide)].filter(Boolean))].sort();
   const stats={};allGuides.forEach(g=>{stats[g]={fM:0,fS:0,fC:0,sM:0,sS:0,sC:0};});
-  fR.forEach(r=>{const p=pay(r);if(r.mainGuide&&stats[r.mainGuide]){stats[r.mainGuide].fM+=r.subGuide?Math.round(p*SPLIT):p;stats[r.mainGuide].fC++;}if(r.subGuide&&stats[r.subGuide]){stats[r.subGuide].fS+=Math.round(p*(1-SPLIT));stats[r.subGuide].fC++;}});
-  sR.forEach(r=>{const p=pay(r);if(r.mainGuide&&stats[r.mainGuide]){stats[r.mainGuide].sM+=r.subGuide?Math.round(p*SPLIT):p;stats[r.mainGuide].sC++;}if(r.subGuide&&stats[r.subGuide]){stats[r.subGuide].sS+=Math.round(p*(1-SPLIT));stats[r.subGuide].sC++;}});
+  fR.forEach(r=>{const p=pay(r);if(r.mainGuide&&stats[r.mainGuide]){stats[r.mainGuide].fM+=p;stats[r.mainGuide].fC++;}if(r.subGuide&&stats[r.subGuide]){stats[r.subGuide].fS+=p;stats[r.subGuide].fC++;}});
+  sR.forEach(r=>{const p=pay(r);if(r.mainGuide&&stats[r.mainGuide]){stats[r.mainGuide].sM+=p;stats[r.mainGuide].sC++;}if(r.subGuide&&stats[r.subGuide]){stats[r.subGuide].sS+=p;stats[r.subGuide].sC++;}});
   document.getElementById('guide-cards').innerHTML=allGuides.map(g=>{
     const s=stats[g],fT=s.fM+s.fS,sT=s.sM+s.sS,grand=fT+sT;
     return `<div class="guide-card ${G_COL[g]||'c-forest'}">
@@ -919,7 +919,7 @@ function renderDaily(){
   const month=document.getElementById('reward-month').value;
   const all=[...DB.forest.map(r=>({...r,tT:'🌲 森'})),...DB.star.map(r=>({...r,tT:'✨ 星空'}))].filter(r=>!month||r.date?.slice(0,7)===month).sort((a,b)=>a.date>b.date?1:-1);
   document.getElementById('daily-tbody').innerHTML=all.map(r=>{
-    const p=pay(r),mA=r.subGuide?Math.round(p*SPLIT):p,sA=r.subGuide?Math.round(p*(1-SPLIT)):0;
+    const p=pay(r),mA=p,sA=r.subGuide?p:0;
     const bc=r.tT.includes('森')?'badge-forest':'badge-sky';
     return `<tr><td class="mono">${r.date}</td><td><span class="badge ${bc}">${r.tT}</span></td><td>${r.name}</td><td class="mono">${pax(r)}名</td><td><strong>${r.mainGuide}</strong></td><td>${r.subGuide||'—'}</td><td class="mono"><strong>${fmt(p)}</strong></td><td class="mono">${fmt(mA)}</td><td class="mono">${r.subGuide?fmt(sA):'—'}</td></tr>`;
   }).join('')||'<tr><td colspan="9"><div class="empty"><div class="empty-icon">📭</div><p>データなし</p></div></td></tr>';
@@ -936,7 +936,7 @@ function renderCombined(){
   let html=`<table><thead><tr><th>ガイド</th>${types.map(t=>`<th>${t}</th>`).join('')}<th>合計</th></tr></thead><tbody>`;
   guides.forEach(g=>{
     let tot=0;
-    const cells=types.map(t=>{const recs=[...forest,...star].filter(r=>r.mainGuide===g&&r.type===t);const amt=recs.reduce((s,r)=>{const p=pay(r);return s+(r.subGuide?Math.round(p*SPLIT):p);},0);tot+=amt;return`<td class="mono">${amt>0?fmt(amt):'—'}</td>`;}).join('');
+    const cells=types.map(t=>{const recs=[...forest,...star].filter(r=>r.mainGuide===g&&r.type===t);const amt=recs.reduce((s,r)=>s+pay(r),0);tot+=amt;return`<td class="mono">${amt>0?fmt(amt):'—'}</td>`;}).join('');
     html+=`<tr><td><strong>${g}</strong></td>${cells}<td class="mono"><strong>${fmt(tot)}</strong></td></tr>`;
   });
   wrap.innerHTML=html+'</tbody></table>';
@@ -1143,14 +1143,8 @@ function buildConfirmPage(guideName, month, issueDate, payDate, displayName) {
     const p = (r.base||0)+(r.extra||0);
     const isMain = r.mainGuide === guideName;
     const hasSub = !!r.subGuide;
-    let myAmt;
-    if (isMain) {
-      myAmt = hasSub ? Math.round(p * SPLIT) : p;
-      totalMain += myAmt;
-    } else {
-      myAmt = Math.round(p * (1-SPLIT));
-      totalSub += myAmt;
-    }
+    let myAmt = p;
+    if (isMain) { totalMain += myAmt; } else { totalSub += myAmt; }
     // 幼児・乳幼児を除いた報酬対象人数
     const billedPax   = (r.adult||0)+(r.child||0);
     const unbilledPax = (r.infant||0)+(r.baby||0);
