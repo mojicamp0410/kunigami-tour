@@ -1151,15 +1151,21 @@ function buildConfirmPage(guideName, month, issueDate, payDate, displayName) {
       myAmt = Math.round(p * (1-SPLIT));
       totalSub += myAmt;
     }
-    const totalPax = (r.adult||0)+(r.child||0)+(r.infant||0)+(r.baby||0);
+    // 幼児・乳幼児を除いた報酬対象人数
+    const billedPax   = (r.adult||0)+(r.child||0);
+    const unbilledPax = (r.infant||0)+(r.baby||0);
+    const paxStr = unbilledPax > 0
+      ? `${billedPax}名<span style="font-size:8pt;color:#c0392b">（+幼児${unbilledPax}名※）</span>`
+      : `${billedPax}名`;
     return `<tr>
       <td class="center">${r.date?.slice(5).replace('-','/')}</td>
       <td>${r.tourLabel} ${r.type||''}</td>
       <td class="center">${r.name||''}</td>
-      <td class="center">${totalPax}名</td>
+      <td class="center">${paxStr}</td>
       <td class="num">${(r.base||0).toLocaleString()}</td>
       <td class="num">${(r.extra||0).toLocaleString()}</td>
       <td class="num"><strong>${myAmt.toLocaleString()}</strong></td>
+      <td style="font-size:8pt;color:#555;max-width:35mm;white-space:normal;word-break:break-all">${r.note||''}</td>
     </tr>`;
   }).join('');
 
@@ -1167,10 +1173,7 @@ function buildConfirmPage(guideName, month, issueDate, payDate, displayName) {
   const issueDateStr = issueDate ? new Date(issueDate).toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric'}) : '';
   const payDateStr = payDate ? new Date(payDate).toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric'}) : '別途ご連絡';
 
-  const breakdownRows = [
-    totalMain > 0 ? `<tr><td>　メインガイド分</td><td>¥${totalMain.toLocaleString()}</td></tr>` : '',
-    totalSub  > 0 ? `<tr><td>　サブガイド分</td><td>¥${totalSub.toLocaleString()}</td></tr>` : '',
-  ].filter(Boolean).join('');
+
 
   return `
   <div class="confirm-page">
@@ -1193,19 +1196,19 @@ function buildConfirmPage(guideName, month, issueDate, payDate, displayName) {
       <div class="confirm-total-amount">¥${grandTotal.toLocaleString()}<small> 円</small></div>
     </div>
 
-    ${breakdownRows ? `<div class="confirm-breakdown"><table>${breakdownRows}</table></div>` : ''}
+
 
     <table class="confirm-table">
       <thead>
         <tr>
           <th>日付</th><th>ツアー種別</th><th>お客様</th><th>人数</th>
-          <th>ベース</th><th>追加</th><th>報酬</th>
+          <th>ベース</th><th>追加</th><th>報酬</th><th>備考</th>
         </tr>
       </thead>
       <tbody>${rows}</tbody>
       <tfoot>
         <tr style="background:#f0efea">
-          <td colspan="6" style="text-align:right;font-weight:700;padding:6px 8px">合計</td>
+          <td colspan="7" style="text-align:right;font-weight:700;padding:6px 8px">合計</td>
           <td class="num" style="font-weight:900;font-size:10pt">¥${grandTotal.toLocaleString()}</td>
         </tr>
       </tfoot>
@@ -1213,6 +1216,7 @@ function buildConfirmPage(guideName, month, issueDate, payDate, displayName) {
 
     <div class="confirm-note">
       ※ 不催行（雨天・曇天等）のツアーは報酬対象外となります。<br>
+      ※ 人数欄の「幼児※」は報酬対象外のため、報酬計算には含まれておりません。<br>
       ※ ご不明点はキャンプ沖縄事業協同組合までお問い合わせください。
     </div>
 
