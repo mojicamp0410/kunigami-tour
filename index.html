@@ -615,7 +615,7 @@ tr:hover td{background:#fafaf5}
 .confirm-page {
   width: 210mm;
   min-height: 297mm;
-  padding: 18mm 20mm;
+  padding: 10mm 20mm 18mm;
   font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', 'Zen Kaku Gothic New', sans-serif;
   font-size: 10pt;
   color: #111;
@@ -624,14 +624,14 @@ tr:hover td{background:#fafaf5}
 }
 .confirm-page:last-child { page-break-after: auto; }
 
-.confirm-header { margin-bottom: 8mm; }
-.confirm-issuer { font-size: 9pt; color: #444; margin-bottom: 6mm; text-align: right; }
-.confirm-title { font-size: 18pt; font-weight: 900; text-align: center; letter-spacing: .1em; margin-bottom: 2mm; }
-.confirm-subtitle { font-size: 9pt; text-align: center; color: #555; margin-bottom: 8mm; }
+.confirm-header { margin-bottom: 0; }
+.confirm-issuer { font-size: 9pt; color: #444; margin-bottom: 3mm; }
+.confirm-title { font-size: 18pt; font-weight: 900; text-align: center; letter-spacing: .1em; margin-bottom: 1mm; }
+.confirm-subtitle { font-size: 9pt; text-align: center; color: #555; margin-bottom: 5mm; }
 
-.confirm-meta { display: flex; justify-content: space-between; margin-bottom: 6mm; font-size: 9pt; }
+.confirm-meta { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 5mm; font-size: 9pt; }
 .confirm-meta-left { line-height: 2; }
-.confirm-meta-right { text-align: right; line-height: 2; }
+.confirm-meta-right { text-align: right; line-height: 1.8; }
 
 .confirm-greeting { font-size: 9.5pt; line-height: 1.9; margin-bottom: 5mm; }
 
@@ -1181,7 +1181,13 @@ function buildConfirmPage(guideName, month, issueDate, payDate, displayName) {
 
   return `
   <div class="confirm-page">
-    <div class="confirm-issuer">発行元：キャンプ沖縄事業協同組合　　発行日：${issueDateStr}</div>
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:3mm">
+      <div style="font-size:9pt;color:#444;font-weight:700">キャンプ沖縄事業協同組合</div>
+      <div style="font-size:8.5pt;color:#555;text-align:right;line-height:1.8">
+        発行日：${issueDateStr}<br>
+        振込予定日：<strong style="color:#111">${payDateStr}</strong>
+      </div>
+    </div>
     <div class="confirm-title">ガイド業務報酬 確認書</div>
     <div class="confirm-subtitle">${y}年${mo}月分</div>
 
@@ -1189,9 +1195,6 @@ function buildConfirmPage(guideName, month, issueDate, payDate, displayName) {
       <div class="confirm-meta-left">
         <strong style="font-size:13pt">${printName}　様</strong><br>
         <span style="font-size:8.5pt;color:#555">下記の通り、ガイド業務報酬をご確認ください。</span>
-      </div>
-      <div class="confirm-meta-right" style="font-size:8.5pt;color:#555">
-        振込予定日：<strong style="color:#111">${payDateStr}</strong>
       </div>
     </div>
 
