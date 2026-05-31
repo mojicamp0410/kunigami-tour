@@ -1091,7 +1091,7 @@ function editRecord(type,id){
   document.getElementById(p+'-admin-note').value=r.adminNote||'';
   document.getElementById('modal-'+type).classList.add('open');
 }
-document.querySelectorAll('.modal-overlay').forEach(el=>{el.addEventListener('click',e=>{if(e.target===el)el.classList.remove('open');});});
+// モーダル外クリックでは閉じない（キャンセルボタンのみで閉じる）
 
 function addRule(type){
   const opts=(type==='forest'?['MOJI','あずみ','雄二','KOKI','MOMO','みほこさん']:['MOJI','KAZUNA','EMA','MOMO','KOKI']).map(o=>`<option>${o}</option>`).join('');
@@ -1647,8 +1647,8 @@ function togglePhotoMode(isPhoto) {
   const labels = {
     's-adult': isPhoto ? '組数（1組固定）' : '大人（12歳以上）',
     's-child': isPhoto ? '—'              : '子ども（6〜12歳）',
-    's-infant':'—',
-    's-baby':  '—',
+    's-infant':isPhoto ? '—'              : '幼児（3〜5歳）',
+    's-baby':  isPhoto ? '—'              : '乳幼児（0〜2歳）',
     's-male':  isPhoto ? '—'              : '男性人数',
     's-female':isPhoto ? '—'              : '女性人数',
   };
