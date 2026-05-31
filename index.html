@@ -981,7 +981,7 @@ async function saveRecord(type){
   if(!date||!name){showToast('催行日とお客様名は必須です','error');return;}
   const btn=document.getElementById('save-btn-'+type);
   btn.disabled=true;btn.textContent='保存中...';
-  const rec={date,type:g(p+'-type'),name,adult:+g(p+'-adult'),child:+g(p+'-child'),infant:+g(p+'-infant'),baby:+g(p+'-baby'),male:+g(p+'-male'),female:+g(p+'-female'),group:g(p+'-group'),pref:g(p+'-pref'),city:g(p+'-city'),stay:g(p+'-stay'),hotel:g(p+'-hotel'),conducted:p==='s'?(g(p+'-conducted')==='true'):true,overseas:g(p+'-overseas'),booking:g(p+'-booking'),mainGuide:g(p+'-main'),subGuide:g(p+'-sub'),sales:+g(p+'-sales'),base:+g(p+'-base'),extra:+g(p+'-extra'),note:g(p+'-note')};
+  const rec={date,type:g(p+'-type'),name,adult:+g(p+'-adult'),child:+g(p+'-child'),infant:+g(p+'-infant'),baby:+g(p+'-baby'),male:+g(p+'-male'),female:+g(p+'-female'),group:g(p+'-group'),pref:g(p+'-pref'),city:g(p+'-city'),stay:g(p+'-stay'),hotel:g(p+'-hotel'),conducted:p==='s'?(g(p+'-conducted')==='true'):true,overseas:g(p+'-overseas'),booking:g(p+'-booking'),mainGuide:g(p+'-main'),subGuide:g(p+'-sub'),sales:+g(p+'-sales'),base:+g(p+'-base'),extra:+g(p+'-extra'),note:g(p+'-note'),adminNote:g(p+'-admin-note')};
   const editId=g(p+'-edit-id');
   let error;
   if(editId){
@@ -991,6 +991,7 @@ async function saveRecord(type){
   }
   btn.disabled=false;btn.textContent='💾 保存';
   if(error){showToast('保存エラー: '+error.message,'error');return;}
+  await loadAll(); // DBを即時更新（2組目以降の自動計算に必要）
   closeModal(type);
   showToast(name+'さんの記録を'+(editId?'更新':'保存')+'しました','success');
 }
