@@ -276,6 +276,7 @@ tr:hover td{background:#fafaf5}
     <button class="inner-tab active" onclick="showSub('reward','monthly',this)">月次集計</button>
     <button class="inner-tab" onclick="showSub('reward','daily',this)">日次明細</button>
     <button class="inner-tab" onclick="showSub('reward','combined',this)">ツアー横断</button>
+    <button class="inner-tab" onclick="showSub('reward','breakdown',this)">人数・売上内訳</button>
     <button class="inner-tab" onclick="showSub('reward','records',this)">全記録・編集</button>
   </div>
   <div id="sub-reward-monthly" class="sub-page active">
@@ -305,6 +306,23 @@ tr:hover td{background:#fafaf5}
     <div class="card">
       <div class="card-header"><h2>🔄 ガイド×ツアー横断</h2></div>
       <div class="card-body"><div class="table-wrap" id="combined-wrap"></div></div>
+    </div>
+  </div>
+
+  <div id="sub-reward-breakdown" class="sub-page">
+    <div class="card">
+      <div class="card-header">
+        <h2>👥 人数・売上内訳</h2>
+        <div class="filter-bar">
+          <select id="filter-breakdown-month" onchange="renderBreakdown()"><option value="">全期間</option></select>
+          <select id="filter-breakdown-tour" onchange="renderBreakdown()">
+            <option value="">森・星空両方</option>
+            <option value="forest">🌲 森のツアー</option>
+            <option value="star">✨ 星空ツアー</option>
+          </select>
+        </div>
+      </div>
+      <div class="card-body" id="breakdown-body"></div>
     </div>
   </div>
 
@@ -1027,6 +1045,7 @@ function showSub(page,sub,el){
   (el||event.target).classList.add('active');
   if(sub==='daily')renderDaily();
   if(sub==='combined')renderCombined();
+  if(sub==='breakdown')renderBreakdown();
   if(sub==='records')renderAdminRecords();
 }
 function openModal(type){
@@ -1498,6 +1517,13 @@ function populateAdminFilters() {
   const months = [...new Set([...getMonths('forest'),...getMonths('star')])].sort();
   mSel.innerHTML = '<option value="">全期間</option>';
   months.forEach(m => { const [y,mo]=m.split('-'); mSel.innerHTML+=`<option value="${m}"${m===cur?' selected':''}>${y}年${mo}月</option>`; });
+  // breakdown月フィルターも同期
+  const bSel = document.getElementById('filter-breakdown-month');
+  if (bSel) {
+    const curB = bSel.value;
+    bSel.innerHTML = '<option value="">全期間</option>';
+    months.forEach(m => { const [y,mo]=m.split('-'); bSel.innerHTML+=`<option value="${m}"${m===curB?' selected':''}>${y}年${mo}月</option>`; });
+  }
 
   const gSel = document.getElementById('filter-admin-guide');
   const curG = gSel.value;
@@ -1679,6 +1705,164 @@ function togglePhotoMode(isPhoto) {
     }
   });
   if (isPhoto) document.getElementById('s-adult').value = 1;
+}
+
+
+// ═══════════════════════════════════════════
+// 人数・売上内訳
+// ═══════════════════════════════════════════
+function renderBreakdown() {
+  populateAdminFilters();
+  const month = document.getElementById('filter-breakdown-month').value;
+  const tour  = document.getElementById('filter-breakdown-tour').value;
+
+  const fRecs = (!tour || tour==='forest')
+    ? DB.forest.filter(r => !month || r.date?.slice(0,7)===month)
+    : [];
+  const sRecs = (!tour || tour==='star')
+    ? DB.star.filter(r => (!month || r.date?.slice(0,7)===month) && r.conducted!==false)
+    : [];
+  const allRecs = [...fRecs, ...sRecs];
+
+  if (!allRecs.length) {
+    document.getElementById('breakdown-body').innerHTML =
+      '<div class="empty"><div class="empty-icon">📭</div><p>データがありません</p></div>';
+    return;
+  }
+
+  // 集計
+  const total = {
+    count:  allRecs.length,
+    adult:  allRecs.reduce((s,r)=>s+(r.adult||0),0),
+    child:  allRecs.reduce((s,r)=>s+(r.child||0),0),
+    infant: allRecs.reduce((s,r)=>s+(r.infant||0),0),
+    baby:   allRecs.reduce((s,r)=>s+(r.baby||0),0),
+    male:   allRecs.reduce((s,r)=>s+(r.male||0),0),
+    female: allRecs.reduce((s,r)=>s+(r.female||0),0),
+    sales:  allRecs.reduce((s,r)=>s+(r.sales||0),0),
+  };
+  total.pax = total.adult + total.child + total.infant + total.baby;
+  total.billed = total.adult + total.child; // 報酬対象
+
+  // グループ別
+  const groupMap = {};
+  allRecs.forEach(r => {
+    const g = r.group || '不明';
+    if (!groupMap[g]) groupMap[g] = { count:0, pax:0, sales:0 };
+    groupMap[g].count++;
+    groupMap[g].pax += (r.adult||0)+(r.child||0)+(r.infant||0)+(r.baby||0);
+    groupMap[g].sales += r.sales||0;
+  });
+
+  // 申込方法別
+  const bookingMap = {};
+  allRecs.forEach(r => {
+    const b = r.booking || '不明';
+    if (!bookingMap[b]) bookingMap[b] = { count:0, pax:0, sales:0 };
+    bookingMap[b].count++;
+    bookingMap[b].pax += (r.adult||0)+(r.child||0)+(r.infant||0)+(r.baby||0);
+    bookingMap[b].sales += r.sales||0;
+  });
+
+  // ツアー種別別
+  const typeMap = {};
+  allRecs.forEach(r => {
+    const t = (r.tType==='star'?'✨ ':'🌲 ') + (r.type||'');
+    const label = (!tour||tour==='forest') && (!tour||tour==='star')
+      ? (fRecs.includes(r)?'🌲 ':'✨ ') + (r.type||'')
+      : r.type||'';
+    const key = fRecs.includes(r) ? '🌲 '+r.type : '✨ '+r.type;
+    if (!typeMap[key]) typeMap[key] = { count:0, pax:0, sales:0 };
+    typeMap[key].count++;
+    typeMap[key].pax += (r.adult||0)+(r.child||0)+(r.infant||0)+(r.baby||0);
+    typeMap[key].sales += r.sales||0;
+  });
+
+  const pillStyle = (bg, color='#111') =>
+    `style="background:${bg};border-radius:10px;padding:14px 18px;color:${color}"`;
+
+  const html = `
+    <!-- サマリーピル -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px">
+      <div ${pillStyle('var(--forest)','#fff')}><div class="pill-label">催行件数</div><div class="pill-value">${total.count}</div><div class="pill-sub">件</div></div>
+      <div ${pillStyle('var(--forest)','#fff')}><div class="pill-label">総来場者</div><div class="pill-value">${fmt(total.pax)}</div><div class="pill-sub">名</div></div>
+      <div ${pillStyle('var(--star)')}><div class="pill-label">売上合計</div><div class="pill-value">${fmt(total.sales)}</div><div class="pill-sub">円</div></div>
+      <div ${pillStyle('var(--light)')}><div class="pill-label">大人</div><div class="pill-value">${fmt(total.adult)}</div><div class="pill-sub">名</div></div>
+      <div ${pillStyle('var(--light)')}><div class="pill-label">子ども</div><div class="pill-value">${fmt(total.child)}</div><div class="pill-sub">名</div></div>
+      <div ${pillStyle('var(--light)')}><div class="pill-label">幼児</div><div class="pill-value">${fmt(total.infant)}</div><div class="pill-sub">名</div></div>
+      <div ${pillStyle('var(--light)')}><div class="pill-label">乳幼児</div><div class="pill-value">${fmt(total.baby)}</div><div class="pill-sub">名</div></div>
+      <div ${pillStyle('#e8f4fd')}><div class="pill-label">男性</div><div class="pill-value">${fmt(total.male)}</div><div class="pill-sub">名</div></div>
+      <div ${pillStyle('#fce4ec')}><div class="pill-label">女性</div><div class="pill-value">${fmt(total.female)}</div><div class="pill-sub">名</div></div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px">
+
+      <!-- ツアー種別 -->
+      <div>
+        <div style="font-size:12px;font-weight:700;color:var(--forest-mid);margin-bottom:8px">📋 ツアー種別</div>
+        <table style="width:100%;border-collapse:collapse;font-size:12px">
+          <thead><tr>
+            <th style="background:var(--light);padding:7px 10px;text-align:left;font-size:10px;font-weight:700;color:#666;border-bottom:1.5px solid #e0e0e0">種別</th>
+            <th style="background:var(--light);padding:7px 10px;text-align:right;font-size:10px;font-weight:700;color:#666;border-bottom:1.5px solid #e0e0e0">件数</th>
+            <th style="background:var(--light);padding:7px 10px;text-align:right;font-size:10px;font-weight:700;color:#666;border-bottom:1.5px solid #e0e0e0">人数</th>
+            <th style="background:var(--light);padding:7px 10px;text-align:right;font-size:10px;font-weight:700;color:#666;border-bottom:1.5px solid #e0e0e0">売上</th>
+          </tr></thead>
+          <tbody>
+            ${Object.entries(typeMap).map(([k,v])=>`<tr>
+              <td style="padding:7px 10px;border-bottom:1px solid #f0f0f0">${k}</td>
+              <td style="padding:7px 10px;border-bottom:1px solid #f0f0f0;text-align:right" class="mono">${v.count}件</td>
+              <td style="padding:7px 10px;border-bottom:1px solid #f0f0f0;text-align:right" class="mono">${v.pax}名</td>
+              <td style="padding:7px 10px;border-bottom:1px solid #f0f0f0;text-align:right" class="mono">${fmt(v.sales)}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- グループ別 -->
+      <div>
+        <div style="font-size:12px;font-weight:700;color:var(--forest-mid);margin-bottom:8px">👨‍👩‍👧 グループ別</div>
+        <table style="width:100%;border-collapse:collapse;font-size:12px">
+          <thead><tr>
+            <th style="background:var(--light);padding:7px 10px;text-align:left;font-size:10px;font-weight:700;color:#666;border-bottom:1.5px solid #e0e0e0">グループ</th>
+            <th style="background:var(--light);padding:7px 10px;text-align:right;font-size:10px;font-weight:700;color:#666;border-bottom:1.5px solid #e0e0e0">件数</th>
+            <th style="background:var(--light);padding:7px 10px;text-align:right;font-size:10px;font-weight:700;color:#666;border-bottom:1.5px solid #e0e0e0">人数</th>
+            <th style="background:var(--light);padding:7px 10px;text-align:right;font-size:10px;font-weight:700;color:#666;border-bottom:1.5px solid #e0e0e0">売上</th>
+          </tr></thead>
+          <tbody>
+            ${Object.entries(groupMap).sort((a,b)=>b[1].count-a[1].count).map(([k,v])=>`<tr>
+              <td style="padding:7px 10px;border-bottom:1px solid #f0f0f0">${k}</td>
+              <td style="padding:7px 10px;border-bottom:1px solid #f0f0f0;text-align:right" class="mono">${v.count}件</td>
+              <td style="padding:7px 10px;border-bottom:1px solid #f0f0f0;text-align:right" class="mono">${v.pax}名</td>
+              <td style="padding:7px 10px;border-bottom:1px solid #f0f0f0;text-align:right" class="mono">${fmt(v.sales)}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- 申込方法別 -->
+      <div>
+        <div style="font-size:12px;font-weight:700;color:var(--forest-mid);margin-bottom:8px">📱 申込方法別</div>
+        <table style="width:100%;border-collapse:collapse;font-size:12px">
+          <thead><tr>
+            <th style="background:var(--light);padding:7px 10px;text-align:left;font-size:10px;font-weight:700;color:#666;border-bottom:1.5px solid #e0e0e0">申込方法</th>
+            <th style="background:var(--light);padding:7px 10px;text-align:right;font-size:10px;font-weight:700;color:#666;border-bottom:1.5px solid #e0e0e0">件数</th>
+            <th style="background:var(--light);padding:7px 10px;text-align:right;font-size:10px;font-weight:700;color:#666;border-bottom:1.5px solid #e0e0e0">人数</th>
+            <th style="background:var(--light);padding:7px 10px;text-align:right;font-size:10px;font-weight:700;color:#666;border-bottom:1.5px solid #e0e0e0">売上</th>
+          </tr></thead>
+          <tbody>
+            ${Object.entries(bookingMap).sort((a,b)=>b[1].sales-a[1].sales).map(([k,v])=>`<tr>
+              <td style="padding:7px 10px;border-bottom:1px solid #f0f0f0">${k}</td>
+              <td style="padding:7px 10px;border-bottom:1px solid #f0f0f0;text-align:right" class="mono">${v.count}件</td>
+              <td style="padding:7px 10px;border-bottom:1px solid #f0f0f0;text-align:right" class="mono">${v.pax}名</td>
+              <td style="padding:7px 10px;border-bottom:1px solid #f0f0f0;text-align:right" class="mono">${fmt(v.sales)}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+
+    </div>`;
+
+  document.getElementById('breakdown-body').innerHTML = html;
 }
 
 // 起動
